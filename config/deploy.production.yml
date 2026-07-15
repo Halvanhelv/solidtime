@@ -22,6 +22,14 @@ accessories:
 proxy:
   hosts:
     - 138.197.0.49.sslip.io
+  # Defaults to false (gnosis explicitly disables it too — DO's own load
+  # balancer terminates TLS in front of kamal-proxy there). We have no such
+  # LB in front, so kamal-proxy itself needs to do it via Let's Encrypt.
+  ssl: true
+  # When ssl:true, kamal-proxy defaults forward_headers to false — the
+  # opposite of what we need. Without X-Forwarded-Proto reaching Laravel,
+  # TRUSTED_PROXIES can't tell the request came in over HTTPS.
+  forward_headers: true
 
 env:
   clear:
