@@ -199,10 +199,14 @@ EXPOSE 8000
 
 ENTRYPOINT ["start-container"]
 
-# No container-level HEALTHCHECK here — gnosis's own Dockerfile doesn't set
-# one either, relying solely on kamal-proxy's HTTP health check (configured
-# in deploy.yml's proxy.healthcheck). Upstream's --start-period=5s was too
-# short for a first boot with AUTO_DB_MIGRATE=true (migrate + optimize +
-# supervisord easily takes 25-30s); Kamal's own boot check inspects
-# `docker inspect ... State.Health`, so a too-eager Docker healthcheck can
-# fail the deploy even though kamal-proxy's HTTP check would've passed fine.
+# Explicitly disabled, not just omitted: dropping our own HEALTHCHECK
+# instruction isn't enough — the dunglas/frankenphp base image bakes in its
+# own (CMD-SHELL curl http://localhost:2019/metrics, Caddy's admin API).
+# That's fine for the http role, but worker/scheduler containers never run
+# Caddy/FrankenPHP at all (CONTAINER_MODE=worker only runs `queue:work` via
+# supervisord) — port 2019 never listens there, so the inherited healthcheck
+# sits in "starting" forever and Kamal's non-proxied-role poller (which polls
+# `docker inspect ... State.Health` directly, unlike the web role which goes
+# through kamal-proxy's own separate HTTP check) times out and kills the
+# container even though the worker process itself booted fine.
+HEALTHCHECK NONE
