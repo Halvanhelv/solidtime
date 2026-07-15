@@ -1,0 +1,9 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+git_source(:github) { |repo| "https://github.com/#{repo}.git" }
+
+# Pinned newer than gnosis's 2.7.0: 2.7.0's registry validator requires
+# username/password even for a "localhost:PORT" registry, which is what we
+# use here (Kamal's own throwaway local registry). Fixed in a later release.
+gem "kamal", "~> 2.11.0"

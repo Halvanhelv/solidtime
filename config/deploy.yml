@@ -1,0 +1,109 @@
+# Name of your application. Used to uniquely configure containers.
+service: solidtime
+
+# Name of the container image.
+image: solidtime
+
+# Local registry: when the server starts with "localhost", Kamal runs its own
+# throwaway Docker registry container on this machine and pushes/pulls the
+# app image through it (tunneled to the remote host over SSH) — sidesteps
+# the DO registry's Starter-tier storage/repo-count caps entirely.
+registry:
+  server: localhost:5555
+
+# Kamal builds from our own fork (Halvanhelv/solidtime) — the upstream
+# docker/prod/Dockerfile shipped as-is only worked via their CI, which
+# pre-runs composer/npm on the runner before docker build. Fixed it to be
+# self-contained (see commit d86a904) so a plain `docker build` works here.
+builder:
+  arch: amd64
+  dockerfile: docker/prod/Dockerfile
+  args:
+    DOCKER_FILES_BASE_PATH: docker/prod/
+    APP_ENV: production
+
+ssh:
+  user: root
+
+env:
+  clear:
+    APP_ENV: production
+    APP_DEBUG: "false"
+    APP_FORCE_HTTPS: "true"
+    # kamal-proxy sits in front and terminates the connection to it over plain
+    # HTTP inside the docker network — without this Laravel won't recognize
+    # the proxy as trusted and /health-check/debug's is_trusted_proxy/secure
+    # will read false even though the outside world is on HTTPS.
+    TRUSTED_PROXIES: "0.0.0.0/0,2000:0:0:0:0:0:0:0/3"
+    # Runs `php artisan migrate --isolated --force` on every container boot
+    # (all three roles have this set — --isolated means only one actually wins
+    # the lock and runs it, the rest just skip). Needed since this is a fresh
+    # Postgres accessory with no schema yet.
+    AUTO_DB_MIGRATE: "true"
+    LOG_CHANNEL: stderr_daily
+    LOG_LEVEL: info
+    DB_CONNECTION: pgsql
+    DB_HOST: solidtime-database
+    DB_PORT: "5432"
+    DB_DATABASE: solidtime
+    DB_USERNAME: solidtime
+    DB_SSLMODE: disable
+    QUEUE_CONNECTION: database
+    FILESYSTEM_DISK: local
+    PUBLIC_FILESYSTEM_DISK: public
+    MAIL_MAILER: smtp
+    MAIL_ENCRYPTION: tls
+    MAIL_FROM_NAME: solidtime
+
+  secret:
+    - APP_KEY
+    - PASSPORT_PRIVATE_KEY
+    - PASSPORT_PUBLIC_KEY
+    - DB_PASSWORD
+    - MAIL_USERNAME
+    - MAIL_PASSWORD
+
+servers:
+  web:
+    hosts: []
+    env:
+      clear:
+        CONTAINER_MODE: http
+    proxy:
+      app_port: 8000
+      healthcheck:
+        path: /health-check/up
+        interval: 2
+        timeout: 2
+
+  scheduler:
+    hosts: []
+    env:
+      clear:
+        CONTAINER_MODE: scheduler
+
+  queue:
+    hosts: []
+    env:
+      clear:
+        CONTAINER_MODE: worker
+        WORKER_COMMAND: "php /var/www/html/artisan queue:work"
+
+accessories:
+  database:
+    image: postgres:15
+    hosts: []
+    env:
+      clear:
+        POSTGRES_DB: solidtime
+        POSTGRES_USER: solidtime
+      secret:
+        - POSTGRES_PASSWORD
+    volumes:
+      - solidtime_db_data:/var/lib/postgresql/data
+
+aliases:
+  ssh: web exec --interactive --reuse "bash"
+  logs: web logs -f
+  tinker: web exec --interactive --reuse "php artisan tinker"
+  migrate: web exec --reuse "php artisan migrate --force"

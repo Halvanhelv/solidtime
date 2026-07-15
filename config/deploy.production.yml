@@ -1,0 +1,28 @@
+servers:
+  web:
+    hosts:
+      - 138.197.0.49
+
+  scheduler:
+    hosts:
+      - 138.197.0.49
+
+  queue:
+    hosts:
+      - 138.197.0.49
+
+accessories:
+  database:
+    hosts:
+      - 138.197.0.49
+
+# sslip.io auto-resolves <ip>.sslip.io -> <ip>, no registrar/DNS setup needed.
+# Free, real, publicly resolvable — Let's Encrypt can issue a cert for it.
+# Swap for a real domain later by just changing this one value.
+proxy:
+  hosts:
+    - 138.197.0.49.sslip.io
+
+env:
+  clear:
+    APP_URL: "https://138.197.0.49.sslip.io"
