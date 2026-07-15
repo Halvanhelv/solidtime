@@ -199,4 +199,10 @@ EXPOSE 8000
 
 ENTRYPOINT ["start-container"]
 
-HEALTHCHECK --start-period=5s --interval=2s --timeout=5s --retries=8 CMD healthcheck || exit 1
+# No container-level HEALTHCHECK here — gnosis's own Dockerfile doesn't set
+# one either, relying solely on kamal-proxy's HTTP health check (configured
+# in deploy.yml's proxy.healthcheck). Upstream's --start-period=5s was too
+# short for a first boot with AUTO_DB_MIGRATE=true (migrate + optimize +
+# supervisord easily takes 25-30s); Kamal's own boot check inspects
+# `docker inspect ... State.Health`, so a too-eager Docker healthcheck can
+# fail the deploy even though kamal-proxy's HTTP check would've passed fine.
