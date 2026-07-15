@@ -1,30 +1,19 @@
 ARG PHP_VERSION=8.3
 ARG FRANKENPHP_VERSION=1.8
 ARG COMPOSER_VERSION=2.8
-ARG BUN_VERSION="latest"
+ARG NODE_VERSION=20
 ARG APP_ENV
 ARG DOCKER_FILES_BASE_PATH="docker/prod/"
 
 FROM composer:${COMPOSER_VERSION} AS vendor
 
-FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-builder-php${PHP_VERSION} AS upstream
-
-COPY --from=caddy:builder /usr/bin/xcaddy /usr/bin/xcaddy
-
-RUN CGO_ENABLED=1 \
-    XCADDY_SETCAP=1 \
-    XCADDY_GO_BUILD_FLAGS="-ldflags='-w -s' -tags=nobadger,nomysql,nopgx" \
-    CGO_CFLAGS=$(php-config --includes) \
-    CGO_LDFLAGS="$(php-config --ldflags) $(php-config --libs)" \
-    xcaddy build v2.10.0 \
-        --output /usr/local/bin/frankenphp \
-        --with github.com/dunglas/frankenphp=./ \
-        --with github.com/dunglas/frankenphp/caddy=./caddy/ \
-        --with github.com/dunglas/caddy-cbrotli
+# Upstream solidtime compiles a custom frankenphp binary here just to add the
+# caddy-cbrotli module (brotli compression on top of the stock gzip support).
+# Skipped intentionally: the stock dunglas/frankenphp image already ships a
+# working frankenphp binary, and compiling Go/Caddy from source is slow and
+# unnecessary on a small droplet for a compression-codec nice-to-have.
 
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php${PHP_VERSION} AS base
-
-COPY --from=upstream /usr/local/bin/frankenphp /usr/local/bin/frankenphp
 
 LABEL maintainer="solidtime <hello@solidtime.io>"
 LABEL org.opencontainers.image.title="solidtime"
@@ -142,46 +131,49 @@ RUN chmod +x /usr/local/bin/start-container /usr/local/bin/healthcheck
 
 ###########################################
 
-#FROM base AS common
-#
-#USER ${USER}
-#
-#COPY --link --chown=${WWWUSER}:${WWWUSER} . .
-#
-#RUN composer install \
-#    --no-dev \
-#    --no-interaction \
-#    --no-autoloader \
-#    --no-ansi \
-#    --no-scripts \
-#    --audit
+FROM base AS common
+
+USER ${USER}
+
+COPY --link --chown=${WWWUSER}:${WWWUSER} . .
+
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-autoloader \
+    --no-ansi \
+    --no-scripts
 
 ###########################################
-# Build frontend assets with Bun
+# Build frontend assets with Node/npm
+# (repo ships package-lock.json, not bun.lock — use npm to match what CI
+# actually runs in .github/workflows/build-public.yml)
 ###########################################
 
-#FROM oven/bun:${BUN_VERSION} AS build
-#
-#ARG APP_ENV
-#
-#ENV ROOT=/var/www/html \
-#    APP_ENV=${APP_ENV} \
-#    NODE_ENV=${APP_ENV:-production}
-#
-#WORKDIR ${ROOT}
-#
-#COPY --link package.json bun.lock* ./
-#
-#RUN bun install --frozen-lockfile
-#
-#COPY --link . .
-#COPY --link --from=common ${ROOT}/vendor vendor
-#
-#RUN bun run build
+FROM node:${NODE_VERSION} AS build
+
+ARG APP_ENV
+
+ENV ROOT=/var/www/html \
+    APP_ENV=${APP_ENV}
+
+WORKDIR ${ROOT}
+
+COPY --link package.json package-lock.json ./
+
+# NODE_ENV is intentionally left unset here — npm ci would skip devDependencies
+# (which is where vite lives) if NODE_ENV=production. `vite build` already
+# defaults to production mode on its own regardless.
+RUN npm ci
+
+COPY --link . .
+COPY --link --from=common ${ROOT}/vendor vendor
+
+RUN npm run build
 
 ###########################################
 
-#FROM common AS runner
+FROM common AS runner
 
 USER ${USER}
 
@@ -189,26 +181,22 @@ ENV WITH_HORIZON=false \
     WITH_SCHEDULER=false \
     WITH_REVERB=false
 
-COPY --link --chown=${WWWUSER}:${WWWUSER} . .
-#COPY --link --chown=${WWWUSER}:${WWWUSER} --from=build ${ROOT}/public public
+COPY --link --chown=${WWWUSER}:${WWWUSER} --from=build ${ROOT}/public public
 
 RUN mkdir -p \
     storage/framework/{sessions,views,cache,testing} \
     storage/logs \
     bootstrap/cache && chmod -R a+rw storage
 
-#RUN composer install \
-#    --classmap-authoritative \
-#    --no-interaction \
-#    --no-ansi \
-#    --no-dev \
-#    && composer clear-cache
-
-RUN cat .env
-#RUN php artisan env
+RUN composer install \
+    --classmap-authoritative \
+    --no-interaction \
+    --no-ansi \
+    --no-dev \
+    && composer clear-cache
 
 EXPOSE 8000
 
 ENTRYPOINT ["start-container"]
 
-#HEALTHCHECK --start-period=5s --interval=2s --timeout=5s --retries=8 CMD healthcheck || exit 1
+HEALTHCHECK --start-period=5s --interval=2s --timeout=5s --retries=8 CMD healthcheck || exit 1
