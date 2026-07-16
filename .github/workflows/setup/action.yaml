@@ -1,0 +1,24 @@
+name: Setup
+
+inputs:
+  ssh-private-key:
+    description: SSH Private Key
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: ruby/setup-ruby@v1
+      env:
+        BUNDLE_GEMFILE: .kamal/Gemfile
+      with:
+        ruby-version: "3.4"
+        bundler-cache: true
+        working-directory: .kamal
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+
+    - uses: webfactory/ssh-agent@v0.10.0
+      with:
+        ssh-private-key: ${{ inputs.ssh-private-key }}

@@ -1,0 +1,129 @@
+name: _lint_code
+
+on:
+  workflow_call:
+
+jobs:
+  phpstan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v6
+
+      - name: "Setup PHP"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv
+          coverage: none
+
+      - name: "Run composer install"
+        run: composer install -n --prefer-dist
+
+      - name: "Run PHPStan"
+        run: composer analyse
+
+  pint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v6
+
+      - name: "Check code style"
+        uses: aglipanci/laravel-pint-action@2.6
+        with:
+          configPath: "pint.json"
+
+  npm-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v6
+
+      - name: "Use Node.js"
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+
+      - name: "Install npm dependencies"
+        run: npm ci
+
+      - name: "Run linter"
+        run: npm run lint
+
+  npm-format-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v6
+
+      - name: "Use Node.js"
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+
+      - name: "Install npm dependencies"
+        run: npm ci
+
+      - name: "Check code formatting"
+        run: npm run format:check
+
+  npm-typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v6
+
+      - name: "Setup PHP (for Ziggy)"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: intl, zip
+          coverage: none
+
+      - name: "Run composer install (for Ziggy)"
+        run: composer install -n --prefer-dist
+
+      - name: "Use Node.js"
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+
+      - name: "Install npm dependencies"
+        run: npm ci
+
+      - name: "Run type check"
+        run: npm run type-check
+
+  npm-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v6
+
+      - name: "Setup PHP (for Ziggy)"
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: intl, zip
+          coverage: none
+
+      - name: "Run composer install (for Ziggy)"
+        run: composer install -n --prefer-dist
+
+      - name: "Use Node.js"
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20.x'
+
+      - name: "Install npm dependencies"
+        run: npm ci
+
+      - name: "Build"
+        run: npm run build

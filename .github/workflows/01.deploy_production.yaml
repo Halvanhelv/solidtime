@@ -1,4 +1,4 @@
-name: Deploy
+name: 01. Deploy to Production
 
 on:
   push:
@@ -11,30 +11,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test:
+    uses: ./.github/workflows/_tests.yaml
+    secrets: inherit
+
+  lint:
+    uses: ./.github/workflows/_lint_code.yaml
+    secrets: inherit
+
   deploy:
+    name: deploy-production
+    needs:
+      - test
+      - lint
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - name: Check out code
         uses: actions/checkout@v6
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+      - name: Setup
+        uses: ./.github/workflows/setup
         with:
-          ruby-version: "3.4"
-          bundler-cache: true
-          working-directory: .kamal
-
-      - name: Set up SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan 138.197.0.49 >> ~/.ssh/known_hosts
-          eval "$(ssh-agent -s)"
-          ssh-add ~/.ssh/deploy_key
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
-          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
       - name: Deploy with Kamal
         env:
