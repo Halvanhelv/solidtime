@@ -182,6 +182,18 @@ class TimeEntryIndexExportRequest extends TimeEntryIndexRequest
                 'numeric',
                 'integer',
             ],
+            // Field to sort the results by (default: start)
+            'sort_by' => [
+                'nullable',
+                'string',
+                'in:start,description,duration',
+            ],
+            // Sort direction (default: desc)
+            'sort_order' => [
+                'nullable',
+                'string',
+                'in:asc,desc',
+            ],
         ];
     }
 

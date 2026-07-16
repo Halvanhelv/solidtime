@@ -9,6 +9,7 @@ import {
     ArrowDownTrayIcon,
     LockClosedIcon,
 } from '@heroicons/vue/20/solid';
+import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/vue/16/solid';
 import Pagination from '@/Components/Common/Pagination.vue';
 import {
     DropdownMenu,
@@ -30,7 +31,7 @@ import {
 } from '@/packages/api/src';
 import { useTagsQuery } from '@/utils/useTagsQuery';
 import { useTagsStore } from '@/utils/useTags';
-import { useSessionStorage } from '@vueuse/core';
+import { useSessionStorage, useUrlSearchParams } from '@vueuse/core';
 import TimeEntryRow from '@/packages/ui/src/TimeEntry/TimeEntryRow.vue';
 import { useCurrentTimeEntryStore } from '@/utils/useCurrentTimeEntry';
 import { useProjectsQuery } from '@/utils/useProjectsQuery';
@@ -81,6 +82,49 @@ const roundingEnabled = ref<boolean>(false);
 const roundingType = ref<TimeEntryRoundingType>('nearest');
 const roundingMinutes = ref<number>(15);
 
+type SortField = 'start' | 'description' | 'duration';
+type SortOrder = 'asc' | 'desc';
+const sortFields: SortField[] = ['start', 'description', 'duration'];
+// URL-backed (not useSessionStorage) so sort survives reload/back-forward and
+// is shareable via link — writeMode defaults to 'replace', so clicking a
+// column header doesn't spam browser history.
+const urlParams = useUrlSearchParams<{ sort_by?: string; sort_order?: string }>('history');
+const sortBy = computed<SortField>({
+    get: () =>
+        sortFields.includes(urlParams.sort_by as SortField)
+            ? (urlParams.sort_by as SortField)
+            : 'start',
+    set: (value) => {
+        urlParams.sort_by = value;
+    },
+});
+const sortOrder = computed<SortOrder>({
+    get: () => (urlParams.sort_order === 'asc' ? 'asc' : 'desc'),
+    set: (value) => {
+        urlParams.sort_order = value;
+    },
+});
+// Description defaults to A-Z on first click, start/duration default to
+// newest/longest-first — matches the sortDescFirst convention used by
+// ProjectTable's column sorting.
+const descFirstFields = new Set<SortField>(['start', 'duration']);
+function handleSort(field: SortField) {
+    if (sortBy.value === field) {
+        sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortBy.value = field;
+        sortOrder.value = descFirstFields.has(field) ? 'desc' : 'asc';
+    }
+    updateFilteredTimeEntries();
+}
+function isChevronDown(field: SortField): boolean {
+    if (sortBy.value !== field) return false;
+    return descFirstFields.has(field) ? sortOrder.value === 'desc' : sortOrder.value === 'asc';
+}
+function isChevronUp(field: SortField): boolean {
+    return sortBy.value === field && !isChevronDown(field);
+}
+
 const { members } = useMembersQuery();
 const { organization } = useOrganizationQuery(getCurrentOrganizationId()!);
 const pageLimit = 15;
@@ -111,6 +155,8 @@ function getFilterAttributes() {
         billable: billable.value !== null ? billable.value : undefined,
         rounding_type: roundingEnabled.value ? roundingType.value : undefined,
         rounding_minutes: roundingEnabled.value ? roundingMinutes.value : undefined,
+        sort_by: sortBy.value,
+        sort_order: sortOrder.value,
     };
     return params;
 }
@@ -155,6 +201,23 @@ const { data: aggregateResponse } = useAggregatedTimeEntriesQuery(
     aggregateFilterParams
 );
 const totalSeconds = computed(() => aggregateResponse?.value?.data?.seconds ?? 0);
+
+// group:'billable' splits the same filtered set into two buckets keyed '0'/'1'
+// (see TimeEntryAggregationService::getGroupedByKey) in a single call, instead
+// of firing the whole query twice with a forced billable=true filter (which
+// would silently return 0 whenever the user's own billable filter is 'false').
+const billableAggregateFilterParams = computed<AggregatedTimeEntriesQueryParams>(() => ({
+    ...aggregateFilterParams.value,
+    group: 'billable',
+}));
+const { data: billableAggregateResponse } = useAggregatedTimeEntriesQuery(
+    'detailed-total-billable',
+    billableAggregateFilterParams
+);
+const billableSeconds = computed(() => {
+    const groups = billableAggregateResponse?.value?.data?.grouped_data ?? [];
+    return groups.find((group) => group.key === '1')?.seconds ?? 0;
+});
 
 async function deleteTimeEntries(timeEntries: TimeEntry[]) {
     await deleteTimeEntriesMutation(timeEntries);
@@ -224,6 +287,16 @@ const queryClient = useQueryClient();
 async function updateFilteredTimeEntries() {
     await queryClient.invalidateQueries({
         queryKey: ['timeEntries', 'detailed-report'],
+    });
+    // The aggregate/Total query has its own query key (set in
+    // useAggregatedTimeEntriesQuery) and isn't invalidated by the above —
+    // without this, deleting/editing an entry updates the list but leaves
+    // the Total stale until filters change.
+    await queryClient.invalidateQueries({
+        queryKey: ['aggregatedTimeEntries', 'detailed-total'],
+    });
+    await queryClient.invalidateQueries({
+        queryKey: ['aggregatedTimeEntries', 'detailed-total-billable'],
     });
 }
 watch(currentPage, () => {
@@ -352,12 +425,22 @@ async function downloadExport(format: ExportFormat) {
             v-model:end-date="endDate"
             @submit="updateFilteredTimeEntries" />
         <MainContainer
-            class="py-2 border-b border-default-background-separator flex justify-end">
+            class="py-2 border-b border-default-background-separator flex justify-end gap-4">
             <span class="text-sm text-text-secondary">
                 Total:
                 <span class="font-medium text-text-primary">{{
                     formatReportingDuration(
                         totalSeconds,
+                        organization?.interval_format,
+                        organization?.number_format
+                    )
+                }}</span>
+            </span>
+            <span class="text-sm text-text-secondary">
+                Billable:
+                <span class="font-medium text-text-primary">{{
+                    formatReportingDuration(
+                        billableSeconds,
                         organization?.interval_format,
                         organization?.number_format
                     )
@@ -390,6 +473,56 @@ async function downloadExport(format: ExportFormat) {
             @submit="clearSelectionAndState"
             @select-all="selectedTimeEntries = [...timeEntries]"
             @unselect-all="selectedTimeEntries = []"></TimeEntryMassActionRow>
+        <MainContainer
+            class="hidden lg:flex py-1.5 border-b border-default-background-separator items-center justify-between text-sm text-text-secondary">
+            <!--
+                Mirrors TimeEntryRow's own left/right flex split (checkbox +
+                description on the left, member/tag/billable/time/duration/
+                actions on the right) so each sort label lands above its
+                column — the row isn't a real grid, so spacers below are
+                sized to match the row's components rather than true columns.
+            -->
+            <div class="flex items-center min-w-0">
+                <div class="w-4 h-4"></div>
+                <button
+                    type="button"
+                    class="flex items-center gap-0.5 ml-4 hover:text-text-primary transition"
+                    :class="{ 'text-text-primary font-medium': sortBy === 'description' }"
+                    @click="handleSort('description')">
+                    <span>Name</span>
+                    <ChevronUpIcon v-if="isChevronUp('description')" class="w-3.5" />
+                    <ChevronDownIcon v-else-if="isChevronDown('description')" class="w-3.5" />
+                </button>
+            </div>
+            <div class="flex items-center space-x-1 lg:space-x-2 shrink-0">
+                <div class="w-16"></div>
+                <div class="w-8 h-8"></div>
+                <div class="w-6 sm:w-8 h-6 sm:h-8"></div>
+                <button
+                    type="button"
+                    class="flex items-center justify-center gap-0.5 hover:text-text-primary transition"
+                    :class="[
+                        organization?.time_format === '12-hours' ? 'w-[160px]' : 'w-[100px]',
+                        { 'text-text-primary font-medium': sortBy === 'start' },
+                    ]"
+                    @click="handleSort('start')">
+                    <span>Time</span>
+                    <ChevronUpIcon v-if="isChevronUp('start')" class="w-3.5" />
+                    <ChevronDownIcon v-else-if="isChevronDown('start')" class="w-3.5" />
+                </button>
+                <button
+                    type="button"
+                    class="flex items-center justify-end gap-0.5 w-[80px] mr-2 hover:text-text-primary transition"
+                    :class="{ 'text-text-primary font-medium': sortBy === 'duration' }"
+                    @click="handleSort('duration')">
+                    <span>Duration</span>
+                    <ChevronUpIcon v-if="isChevronUp('duration')" class="w-3.5" />
+                    <ChevronDownIcon v-else-if="isChevronDown('duration')" class="w-3.5" />
+                </button>
+                <div class="w-8 h-8"></div>
+                <div class="w-8 h-8"></div>
+            </div>
+        </MainContainer>
         <div class="w-full relative @container">
             <div v-for="entry in timeEntries" :key="entry.id">
                 <TimeEntryRow

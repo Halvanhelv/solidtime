@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\ExportFormat;
 use App\Enums\Role;
+use App\Enums\TimeEntryAggregationType;
 use App\Exceptions\Api\FeatureIsNotAvailableInFreePlanApiException;
 use App\Exceptions\Api\OverlappingTimeEntryApiException;
 use App\Exceptions\Api\PdfRendererIsNotConfiguredException;
@@ -193,9 +194,31 @@ class TimeEntryController extends Controller
         }
         $timeEntriesQuery = TimeEntry::query()
             ->whereBelongsTo($organization, 'organization')
-            ->select($select)
-            ->orderBy('time_entries.start', 'desc')
-            ->orderBy('time_entries.id');
+            ->select($select);
+
+        // TimeEntryIndexExportRequest extends TimeEntryIndexRequest, so this
+        // sorting applies to both the index list and export downloads.
+        $sortBy = $request->getSortBy();
+        if ($sortBy !== null) {
+            // sort_order is validated to be one of "asc"/"desc" (see
+            // TimeEntryIndexRequest::rules), safe to interpolate into raw SQL.
+            $direction = $request->getSortOrder();
+            match ($sortBy) {
+                'start' => $timeEntriesQuery->orderBy('time_entries.start', $direction),
+                'description' => $timeEntriesQuery->orderBy('time_entries.description', $direction),
+                // No stored duration column — end is nullable for still-running
+                // entries, treat those as running until now like the rest of the
+                // app does (see TimeEntryService::getEndSelectRawForRounding).
+                'duration' => $timeEntriesQuery->orderByRaw('(coalesce("end", now()) - start) '.$direction),
+                // Unreachable: sort_by is validated to in:start,description,duration
+                // (see TimeEntryIndexRequest::rules); PHPStan can't see that from $sortBy's
+                // plain `string` type, so this keeps the match exhaustive.
+                default => throw new \LogicException("Unexpected sort_by value: {$sortBy}"),
+            };
+        } else {
+            $timeEntriesQuery->orderBy('time_entries.start', 'desc');
+        }
+        $timeEntriesQuery->orderBy('time_entries.id');
 
         $filter = new TimeEntryFilter($timeEntriesQuery);
         $filter->addStartFilter($request->input('start'));
@@ -264,9 +287,12 @@ class TimeEntryController extends Controller
                 throw new \LogicException('View file not found');
             }
             $timeEntriesAggregateQuery = $this->getTimeEntriesAggregateQuery($organization, $request, $member);
+            // Grouping by billable splits grouped_data into '0'/'1' buckets for
+            // the Billable summary figure — the top-level 'seconds' stays the
+            // grand total regardless of grouping, so Duration is unaffected.
             $aggregatedData = $timeEntryAggregationService->getAggregatedTimeEntries(
                 $timeEntriesAggregateQuery,
-                null,
+                TimeEntryAggregationType::Billable,
                 null,
                 $user->timezone,
                 $user->week_start,
@@ -467,6 +493,23 @@ class TimeEntryController extends Controller
             $roundingType,
             $roundingMinutes
         );
+        // The header's Billable figure is independent of the user-chosen
+        // $group/$subGroup used for the rest of the report, so it needs its
+        // own billable-grouped aggregation rather than reusing $aggregatedData.
+        $billableAggregatedData = $timeEntryAggregationService->getAggregatedTimeEntries(
+            $timeEntriesAggregateQuery->clone(),
+            TimeEntryAggregationType::Billable,
+            null,
+            $user->timezone,
+            $user->week_start,
+            false,
+            $request->getStart(),
+            $request->getEnd(),
+            $showBillableRate,
+            $roundingType,
+            $roundingMinutes
+        );
+        $billableSeconds = collect($billableAggregatedData['grouped_data'])->firstWhere('key', '1')['seconds'] ?? 0;
         $currency = $organization->currency;
         $timezone = app(TimezoneService::class)->getTimezoneFromUser($this->user());
         $localizationService = LocalizationService::forOrganization($organization);
@@ -491,6 +534,7 @@ class TimeEntryController extends Controller
             }
             $html = Blade::render($viewFile, [
                 'aggregatedData' => $aggregatedData,
+                'billableSeconds' => $billableSeconds,
                 'dataHistoryChart' => $dataHistoryChart,
                 'currency' => $currency,
                 'group' => $group,

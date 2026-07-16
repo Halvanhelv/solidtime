@@ -177,6 +177,18 @@ class TimeEntryIndexRequest extends BaseFormRequest
                 'numeric',
                 'integer',
             ],
+            // Field to sort the results by (default: start)
+            'sort_by' => [
+                'nullable',
+                'string',
+                'in:start,description,duration',
+            ],
+            // Sort direction (default: desc)
+            'sort_order' => [
+                'nullable',
+                'string',
+                'in:asc,desc',
+            ],
         ];
     }
 
@@ -220,5 +232,23 @@ class TimeEntryIndexRequest extends BaseFormRequest
         }
 
         return (int) $this->validated('rounding_minutes');
+    }
+
+    public function getSortBy(): ?string
+    {
+        if (! $this->has('sort_by') || $this->validated('sort_by') === null) {
+            return null;
+        }
+
+        return $this->validated('sort_by');
+    }
+
+    public function getSortOrder(): string
+    {
+        if (! $this->has('sort_order') || $this->validated('sort_order') === null) {
+            return 'desc';
+        }
+
+        return $this->validated('sort_order');
     }
 }
