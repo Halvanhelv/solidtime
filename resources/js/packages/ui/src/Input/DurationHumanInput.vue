@@ -30,8 +30,8 @@ function updateDuration() {
         organization?.value?.interval_format === 'decimal' ? 'hours' : 'minutes'
     );
     if (seconds && seconds > 0) {
-        const newStartDate = getDayJsInstance()(end.value).subtract(seconds, 's');
-        start.value = newStartDate.utc().format();
+        const newEndDate = getDayJsInstance()(start.value).add(seconds, 's');
+        end.value = newEndDate.utc().format();
     }
     updateTimeEntryInputValue();
 }
