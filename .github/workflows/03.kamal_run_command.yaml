@@ -1,0 +1,43 @@
+name: 03. Kamal Run Command
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'Commands'
+        required: true
+        type: choice
+        options:
+          - proxy reboot --rolling -y
+          - upgrade --rolling -y
+          - accessory boot all
+          - accessory reboot database
+          - accessory reboot gotenberg
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  kamal_run_command:
+    name: Kamal run command
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Setup
+        uses: ./.github/workflows/setup
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: kamal ${{ github.event.inputs.command }} -d production
+        env:
+          APP_KEY: ${{ secrets.APP_KEY }}
+          PASSPORT_PRIVATE_KEY: ${{ secrets.PASSPORT_PRIVATE_KEY }}
+          PASSPORT_PUBLIC_KEY: ${{ secrets.PASSPORT_PUBLIC_KEY }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+        run: bin/kamal ${{ github.event.inputs.command }} -d production
