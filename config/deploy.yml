@@ -30,6 +30,9 @@ env:
     APP_ENV: production
     APP_DEBUG: "false"
     APP_FORCE_HTTPS: "true"
+    # Comma-separated list — grants access to /admin. Public registration is
+    # already off (APP_ENABLE_REGISTRATION defaults to false, never enabled here).
+    SUPER_ADMINS: "islam.gagiev@jetrockets.com"
     # kamal-proxy sits in front and terminates the connection to it over plain
     # HTTP inside the docker network — without this Laravel won't recognize
     # the proxy as trusted and /health-check/debug's is_trusted_proxy/secure
