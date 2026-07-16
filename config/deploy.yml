@@ -57,6 +57,9 @@ env:
     MAIL_MAILER: smtp
     MAIL_ENCRYPTION: tls
     MAIL_FROM_NAME: solidtime
+    # Accessory hostname is "<service>-gotenberg" on the Kamal docker network,
+    # same pattern as DB_HOST below. Port 3000 is gotenberg's own default.
+    GOTENBERG_URL: "http://solidtime-gotenberg:3000"
 
   secret:
     - APP_KEY
@@ -104,6 +107,10 @@ accessories:
         - POSTGRES_PASSWORD
     volumes:
       - solidtime_db_data:/var/lib/postgresql/data
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    hosts: []
 
 aliases:
   ssh: web exec --interactive --reuse "bash"
