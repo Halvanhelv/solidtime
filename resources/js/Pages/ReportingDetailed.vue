@@ -54,6 +54,9 @@ import ReportingFilterBar from '@/Components/Common/Reporting/ReportingFilterBar
 import { useTimeEntriesReportQuery } from '@/utils/useTimeEntriesReportQuery';
 import { useTimeEntriesMutations } from '@/utils/useTimeEntriesMutations';
 import { useOrganizationQuery } from '@/utils/useOrganizationQuery';
+import { useAggregatedTimeEntriesQuery } from '@/utils/useAggregatedTimeEntriesQuery';
+import { formatReportingDuration } from '@/packages/ui/src/utils/time';
+import type { AggregatedTimeEntriesQueryParams } from '@/packages/api/src';
 import type { TagMatchType } from '@/types/reporting';
 
 // TimeEntryRoundingType is now defined in ReportingRoundingControls component
@@ -139,6 +142,19 @@ const { data: timeEntryResponse } = useTimeEntriesReportQuery(filterParams);
 const totalPages = computed(() => {
     return timeEntryResponse?.value?.meta?.total ?? 1;
 });
+
+// Total duration across all entries matching the current filters (not just the
+// current page) — the aggregate endpoint's top-level `seconds` is the grand
+// total regardless of grouping, so no `group`/`sub_group` param is needed here.
+const aggregateFilterParams = computed<AggregatedTimeEntriesQueryParams>(() => {
+    const { active: _active, limit: _limit, offset: _offset, ...rest } = getFilterAttributes();
+    return rest;
+});
+const { data: aggregateResponse } = useAggregatedTimeEntriesQuery(
+    'detailed-total',
+    aggregateFilterParams
+);
+const totalSeconds = computed(() => aggregateResponse?.value?.data?.seconds ?? 0);
 
 async function deleteTimeEntries(timeEntries: TimeEntry[]) {
     await deleteTimeEntriesMutation(timeEntries);
@@ -335,6 +351,19 @@ async function downloadExport(format: ExportFormat) {
             v-model:start-date="startDate"
             v-model:end-date="endDate"
             @submit="updateFilteredTimeEntries" />
+        <MainContainer
+            class="py-2 border-b border-default-background-separator flex justify-end">
+            <span class="text-sm text-text-secondary">
+                Total:
+                <span class="font-medium text-text-primary">{{
+                    formatReportingDuration(
+                        totalSeconds,
+                        organization?.interval_format,
+                        organization?.number_format
+                    )
+                }}</span>
+            </span>
+        </MainContainer>
         <TimeEntryMassActionRow
             :selected-time-entries="selectedTimeEntries"
             :can-create-project="canCreateProjects()"
