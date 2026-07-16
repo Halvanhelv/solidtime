@@ -106,7 +106,7 @@ class TimeEntriesDetailedExport implements FromQuery, ShouldAutoSize, WithColumn
             'Duration',
             'Duration (decimal)',
             'Billable',
-            'Tags',
+            // 'Tags', // temporarily disabled for all exports
         ];
     }
 
@@ -130,7 +130,7 @@ class TimeEntriesDetailedExport implements FromQuery, ShouldAutoSize, WithColumn
                 $duration !== null ? $this->localizationService->formatInterval($duration) : null,
                 $duration?->totalHours,
                 $model->billable ? 'Yes' : 'No',
-                $model->tagsRelation->pluck('name')->implode(', '),
+                // $model->tagsRelation->pluck('name')->implode(', '), // temporarily disabled for all exports
             ];
         } elseif ($this->exportFormat === ExportFormat::ODS) {
             return [
@@ -144,7 +144,7 @@ class TimeEntriesDetailedExport implements FromQuery, ShouldAutoSize, WithColumn
                 $duration !== null ? $this->localizationService->formatInterval($duration) : null,
                 $duration?->totalHours,
                 $model->billable ? 'Yes' : 'No',
-                $model->tagsRelation->pluck('name')->implode(', '),
+                // $model->tagsRelation->pluck('name')->implode(', '), // temporarily disabled for all exports
             ];
         } else {
             throw new LogicException('Unsupported export format.');

@@ -25,7 +25,7 @@ class TimeEntriesDetailedCsvExport extends CsvExport
         'Duration',
         'Duration (decimal)',
         'Billable',
-        'Tags',
+        // 'Tags', // temporarily disabled for all exports
     ];
 
     protected const string CARBON_FORMAT = 'Y-m-d H:i:s';
@@ -58,7 +58,7 @@ class TimeEntriesDetailedCsvExport extends CsvExport
             'Duration' => $duration !== null ? $interval->format($model->getDuration()) : null,
             'Duration (decimal)' => $duration?->totalHours,
             'Billable' => $model->billable ? 'Yes' : 'No',
-            'Tags' => $model->tagsRelation->pluck('name')->implode(', '),
+            // 'Tags' => $model->tagsRelation->pluck('name')->implode(', '), // temporarily disabled for all exports
         ];
     }
 }
