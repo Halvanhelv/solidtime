@@ -14,7 +14,6 @@ runs:
       with:
         ruby-version: "3.4"
         bundler-cache: true
-        working-directory: .kamal
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
