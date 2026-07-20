@@ -93,6 +93,10 @@ export interface User {
     two_factor_confirmed_at: string | null;
     timezone: string;
     week_start: string;
+    calendar_enabled: boolean;
+    timesheet_enabled: boolean;
+    tags_enabled: boolean;
+    dashboard_billable_widgets_enabled: boolean;
     // mutators
     profile_photo_url: string;
     // relations
