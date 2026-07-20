@@ -24,7 +24,9 @@ set -euo pipefail
 
 IMAGE="${IMAGE:-solidtime-selfbuild:test}"
 NETWORK="${NETWORK:-solidtime_internal}"
-ENV_FILE="${ENV_FILE:-/Users/islamgagiev/Documents/solidtime/laravel.env}"
+# Path to the Kamal deploy dir's laravel.env (sibling checkout by default).
+# Override with ENV_FILE=/path/to/laravel.env if your layout differs.
+ENV_FILE="${ENV_FILE:-../solidtime/laravel.env}"
 APP_CONTAINER="${APP_CONTAINER:-solidtime-app-1}"
 HOT_URL="${HOT_URL:-http://localhost:5173}"
 
