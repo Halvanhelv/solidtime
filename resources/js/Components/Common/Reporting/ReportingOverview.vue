@@ -151,6 +151,23 @@ const tableQueryParams = computed<AggregatedTimeEntriesQueryParams>(() => {
 const { data: graphResponse } = useAggregatedTimeEntriesQuery('graph', graphQueryParams);
 const { data: tableResponse } = useAggregatedTimeEntriesQuery('table', tableQueryParams);
 
+// Billable-only duration for the KPI strip. `group:'billable'` splits the same
+// filtered set into buckets keyed '0' (non-billable) / '1' (billable) in a single
+// call, which composes correctly with any billable filter state — unlike forcing
+// `billable=true`, which would silently return 0 when the user's filter is 'false'.
+const billableSummaryParams = computed<AggregatedTimeEntriesQueryParams>(() => ({
+    ...filterParams.value,
+    group: 'billable',
+}));
+const { data: billableSummaryResponse } = useAggregatedTimeEntriesQuery(
+    'summary-billable',
+    billableSummaryParams
+);
+const billableSeconds = computed<number>(() => {
+    const groups = billableSummaryResponse.value?.data?.grouped_data ?? [];
+    return groups.find((groupEntry) => groupEntry.key === '1')?.seconds ?? 0;
+});
+
 const aggregatedGraphTimeEntries = computed<AggregatedTimeEntries | undefined>(() => {
     return graphResponse.value?.data as AggregatedTimeEntries | undefined;
 });
@@ -376,6 +393,41 @@ const tableData = computed(() => {
         v-model:rounding-minutes="roundingMinutes"
         v-model:start-date="startDate"
         v-model:end-date="endDate" />
+    <MainContainer
+        class="py-3 border-b border-default-background-separator flex flex-wrap gap-x-8 gap-y-2 items-center">
+        <span class="text-sm text-text-secondary">
+            Total:
+            <span class="font-medium text-text-primary">{{
+                formatReportingDuration(
+                    aggregatedTableTimeEntries?.seconds ?? 0,
+                    organization?.interval_format,
+                    organization?.number_format
+                )
+            }}</span>
+        </span>
+        <span class="text-sm text-text-secondary">
+            Billable:
+            <span class="font-medium text-text-primary">{{
+                formatReportingDuration(
+                    billableSeconds,
+                    organization?.interval_format,
+                    organization?.number_format
+                )
+            }}</span>
+        </span>
+        <span v-if="showBillableRate" class="text-sm text-text-secondary">
+            Amount:
+            <span class="font-medium text-text-primary">{{
+                formatCents(
+                    aggregatedTableTimeEntries?.cost ?? 0,
+                    getOrganizationCurrencyString(),
+                    organization?.currency_format,
+                    organization?.currency_symbol,
+                    organization?.number_format
+                )
+            }}</span>
+        </span>
+    </MainContainer>
     <MainContainer>
         <div class="pt-10 w-full px-3 relative">
             <ReportingChart
