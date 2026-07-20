@@ -39,13 +39,24 @@ async function getConfig() {
             }),
             ...additionalPlugins,
         ],
-        server: {
-            host: true,
-            hmr: {
-                host: process.env.VITE_HOST_NAME,
-                clientPort: 80,
-            },
-        },
+        server: process.env.VITE_LOCAL_DEV
+            ? {
+                  host: '0.0.0.0',
+                  port: 5173,
+                  cors: true,
+                  hmr: {
+                      host: 'localhost',
+                      protocol: 'ws',
+                      clientPort: 5173,
+                  },
+              }
+            : {
+                  host: true,
+                  hmr: {
+                      host: process.env.VITE_HOST_NAME,
+                      clientPort: 80,
+                  },
+              },
     });
 }
 

@@ -43,3 +43,6 @@ yarn-error.log
 /config/caddy
 /config/composer
 /AGENTS.md
+
+# local tool caches (composer, psysh) accidentally created in-repo
+.config/
