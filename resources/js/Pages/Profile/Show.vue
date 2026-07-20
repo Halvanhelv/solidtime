@@ -9,6 +9,7 @@ import UpdateProfileInformationForm from '@/Pages/Profile/Partials/UpdateProfile
 import type { Session } from '@/types/jetstream';
 import ApiTokensForm from '@/Pages/Profile/Partials/ApiTokensForm.vue';
 import ThemeForm from '@/Pages/Profile/Partials/ThemeForm.vue';
+import InterfacePreferencesForm from '@/Pages/Profile/Partials/InterfacePreferencesForm.vue';
 
 defineProps<{
     confirmsTwoFactorAuthentication: boolean;
@@ -32,6 +33,12 @@ defineProps<{
 
                 <div>
                     <ThemeForm />
+
+                    <SectionBorder />
+                </div>
+
+                <div>
+                    <InterfacePreferencesForm class="mt-10 sm:mt-0" />
 
                     <SectionBorder />
                 </div>
