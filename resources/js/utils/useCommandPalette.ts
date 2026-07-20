@@ -124,6 +124,8 @@ export function useCommandPalette() {
     const getCurrentTeamId = () => page.props.auth.user.current_team?.id ?? '';
     const allOrganizations = computed(() => page.props.auth.user.all_teams || []);
     const currentOrgId = computed(() => page.props.auth.user.current_team_id || '');
+    const calendarEnabled = computed(() => page.props.auth.user.calendar_enabled);
+    const tagsEnabled = computed(() => page.props.auth.user.tags_enabled);
 
     const lastTimeEntry = computed(() => {
         const pages = timeEntriesQuery.data.value?.pages;
@@ -261,6 +263,8 @@ export function useCommandPalette() {
                 canViewInvoices,
                 canManageBilling,
                 canUpdateOrganization,
+                calendarEnabled: calendarEnabled.value,
+                tagsEnabled: tagsEnabled.value,
             },
             {
                 isInvoicingActivated,
@@ -296,6 +300,9 @@ export function useCommandPalette() {
             },
             {
                 isActive: () => isActive.value,
+            },
+            {
+                tagsEnabled: tagsEnabled.value,
             }
         )
     );
@@ -317,6 +324,7 @@ export function useCommandPalette() {
                 canCreateTasks,
                 canCreateTags,
                 canCreateInvitations,
+                tagsEnabled: tagsEnabled.value,
             }
         )
     );

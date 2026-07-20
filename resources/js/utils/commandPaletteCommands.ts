@@ -69,6 +69,8 @@ export function createNavigationCommands(
         canViewInvoices: () => boolean;
         canManageBilling: () => boolean;
         canUpdateOrganization: () => boolean;
+        calendarEnabled: boolean;
+        tagsEnabled: boolean;
     },
     features: {
         isInvoicingActivated: () => boolean;
@@ -102,6 +104,7 @@ export function createNavigationCommands(
             keywords: ['calendar', 'week', 'schedule'],
             group: 'navigation',
             action: () => navigate('calendar'),
+            permission: () => permissions.calendarEnabled,
             priority: GROUP_PRIORITIES.navigation + 8,
         },
         {
@@ -169,7 +172,7 @@ export function createNavigationCommands(
             keywords: ['tags', 'labels', 'categories'],
             group: 'navigation',
             action: () => navigate('tags'),
-            permission: permissions.canViewTags,
+            permission: () => permissions.canViewTags() && permissions.tagsEnabled,
             priority: GROUP_PRIORITIES.navigation + 1,
         },
         {
@@ -291,6 +294,9 @@ export function createActiveTimerCommands(
     },
     conditions: {
         isActive: () => boolean;
+    },
+    permissions: {
+        tagsEnabled: boolean;
     }
 ): Command[] {
     const minuteOptions = [5, 10, 15, 20, 25, 30, 45, 60];
@@ -334,6 +340,7 @@ export function createActiveTimerCommands(
             keywords: ['tags', 'add tags', 'labels'],
             group: 'active-timer',
             action: activeTimerActions.openTagsSelector,
+            permission: () => permissions.tagsEnabled,
             condition: conditions.isActive,
             priority: GROUP_PRIORITIES['active-timer'] + 8,
         },
@@ -399,6 +406,7 @@ export function createCreateCommands(
         canCreateTasks: () => boolean;
         canCreateTags: () => boolean;
         canCreateInvitations: () => boolean;
+        tagsEnabled: boolean;
     }
 ): Command[] {
     return [
@@ -439,7 +447,7 @@ export function createCreateCommands(
             keywords: ['new tag', 'add tag', 'create'],
             group: 'create',
             action: createActions.openTagModal,
-            permission: permissions.canCreateTags,
+            permission: () => permissions.canCreateTags() && permissions.tagsEnabled,
             priority: GROUP_PRIORITIES.create + 2,
         },
         {

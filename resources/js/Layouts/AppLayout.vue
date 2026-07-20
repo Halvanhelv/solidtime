@@ -182,11 +182,13 @@ const page = usePage<{
                                 :current="route().current('time')"
                                 :href="route('time')"></NavigationSidebarItem>
                             <NavigationSidebarItem
+                                v-if="page.props.auth.user.calendar_enabled"
                                 title="Calendar"
                                 :icon="CalendarIcon"
                                 :current="route().current('calendar')"
                                 :href="route('calendar')"></NavigationSidebarItem>
                             <NavigationSidebarItem
+                                v-if="page.props.auth.user.timesheet_enabled"
                                 title="Timesheet"
                                 :icon="TableCellsIcon"
                                 :current="route().current('timesheet')"
@@ -244,7 +246,7 @@ const page = usePage<{
                                 :current="route().current('members')"
                                 :href="route('members')"></NavigationSidebarItem>
                             <NavigationSidebarItem
-                                v-if="canViewTags()"
+                                v-if="canViewTags() && page.props.auth.user.tags_enabled"
                                 title="Tags"
                                 :icon="TagIcon"
                                 :current="route().current('tags')"
