@@ -765,6 +765,9 @@ class UserEndpointTest extends ApiEndpointTestAbstract
         // Arrange
         $data = $this->createUserWithPermission();
         $this->assertTrue($data->user->calendar_enabled);
+        $this->assertTrue($data->user->timesheet_enabled);
+        $this->assertTrue($data->user->tags_enabled);
+        $this->assertTrue($data->user->dashboard_billable_widgets_enabled);
         Passport::actingAs($data->user);
 
         // Act
@@ -777,6 +780,8 @@ class UserEndpointTest extends ApiEndpointTestAbstract
         $response->assertSuccessful();
         $user = $data->user->fresh();
         $this->assertTrue($user->calendar_enabled);
+        $this->assertTrue($user->timesheet_enabled);
         $this->assertTrue($user->tags_enabled);
+        $this->assertTrue($user->dashboard_billable_widgets_enabled);
     }
 }

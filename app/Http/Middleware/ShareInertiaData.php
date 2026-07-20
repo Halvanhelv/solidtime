@@ -46,6 +46,10 @@ class ShareInertiaData
                         'profile_photo_path' => $user->profile_photo_path,
                         'timezone' => $user->timezone,
                         'week_start' => $user->week_start,
+                        'calendar_enabled' => $user->calendar_enabled,
+                        'timesheet_enabled' => $user->timesheet_enabled,
+                        'tags_enabled' => $user->tags_enabled,
+                        'dashboard_billable_widgets_enabled' => $user->dashboard_billable_widgets_enabled,
                         'profile_photo_url' => $user->profile_photo_url,
                         'two_factor_enabled' => Features::enabled(Features::twoFactorAuthentication())
                             && ! is_null($user->two_factor_secret),
