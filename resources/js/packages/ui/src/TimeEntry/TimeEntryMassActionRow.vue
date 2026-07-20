@@ -17,24 +17,30 @@ import { twMerge } from 'tailwind-merge';
 import { Button, Checkbox } from '@/packages/ui/src';
 import { FieldLabel } from '../field';
 
-const props = defineProps<{
-    selectedTimeEntries: TimeEntry[];
-    deleteSelected: () => void;
-    class?: string;
-    allSelected: boolean;
-    projects: Project[];
-    tasks: Task[];
-    tags: Tag[];
-    clients: Client[];
-    createTag: (name: string) => Promise<Tag | undefined>;
-    createProject: (project: CreateProjectBody) => Promise<Project | undefined>;
-    createClient: (client: CreateClientBody) => Promise<Client | undefined>;
-    updateTimeEntries: (changeset: UpdateMultipleTimeEntriesChangeset) => Promise<void>;
-    currency: string;
-    enableEstimatedTime: boolean;
-    canCreateProject: boolean;
-    organizationBillableRate: number | null;
-}>();
+const props = withDefaults(
+    defineProps<{
+        selectedTimeEntries: TimeEntry[];
+        deleteSelected: () => void;
+        class?: string;
+        allSelected: boolean;
+        projects: Project[];
+        tasks: Task[];
+        tags: Tag[];
+        clients: Client[];
+        createTag: (name: string) => Promise<Tag | undefined>;
+        createProject: (project: CreateProjectBody) => Promise<Project | undefined>;
+        createClient: (client: CreateClientBody) => Promise<Client | undefined>;
+        updateTimeEntries: (changeset: UpdateMultipleTimeEntriesChangeset) => Promise<void>;
+        currency: string;
+        enableEstimatedTime: boolean;
+        canCreateProject: boolean;
+        organizationBillableRate: number | null;
+        tagsEnabled?: boolean;
+    }>(),
+    {
+        tagsEnabled: true,
+    }
+);
 
 const emit = defineEmits<{
     submit: [];
@@ -51,6 +57,7 @@ const showMassUpdateModal = ref(false);
         :projects
         :tasks
         :tags
+        :tags-enabled="tagsEnabled"
         :clients
         :create-tag
         :create-project

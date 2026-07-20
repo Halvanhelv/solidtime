@@ -194,6 +194,7 @@ const firstProjectId = computed(() => projects.value[0]?.id ?? '');
         :projects="projects"
         :tasks="tasks"
         :tags="tags"
+        :tags-enabled="page.props.auth.user.tags_enabled"
         :clients="activeClients"
         :currency="getOrganizationCurrencyString()"
         :enable-estimated-time="isAllowedToPerformPremiumAction()"

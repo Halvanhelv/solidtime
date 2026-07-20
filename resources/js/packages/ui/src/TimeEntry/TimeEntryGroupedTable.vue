@@ -39,9 +39,11 @@ const props = withDefaults(
         enableEstimatedTime: boolean;
         canCreateProject: boolean;
         groupSimilarTimeEntries?: boolean;
+        tagsEnabled?: boolean;
     }>(),
     {
         groupSimilarTimeEntries: true,
+        tagsEnabled: true,
     }
 );
 
@@ -167,6 +169,7 @@ function unselectAllTimeEntries(value: TimeEntriesGroupedByType[]) {
                     :projects="projects"
                     :tasks="tasks"
                     :tags="tags"
+                    :tags-enabled="tagsEnabled"
                     :clients
                     :on-start-stop-click="startTimeEntryFromExisting"
                     :duplicate-time-entry="createTimeEntry"
@@ -206,6 +209,7 @@ function unselectAllTimeEntries(value: TimeEntriesGroupedByType[]) {
                     "
                     :tasks="tasks"
                     :tags="tags"
+                    :tags-enabled="tagsEnabled"
                     :clients
                     :create-tag
                     :organization-billable-rate="organizationBillableRate"

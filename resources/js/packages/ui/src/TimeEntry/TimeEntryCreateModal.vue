@@ -29,22 +29,28 @@ import TimePickerSimple from '@/packages/ui/src/Input/TimePickerSimple.vue';
 const show = defineModel('show', { default: false });
 const saving = ref(false);
 
-const props = defineProps<{
-    enableEstimatedTime: boolean;
-    createTimeEntry: (entry: Omit<CreateTimeEntryBody, 'member_id'>) => Promise<void>;
-    createClient: (client: CreateClientBody) => Promise<Client | undefined>;
-    createProject: (project: CreateProjectBody) => Promise<Project | undefined>;
-    createTag: (name: string) => Promise<Tag | undefined>;
-    tags: Tag[];
-    projects: Project[];
-    tasks: Task[];
-    clients: Client[];
-    start?: string;
-    end?: string;
-    currency: string;
-    organizationBillableRate: number | null;
-    canCreateProject: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        enableEstimatedTime: boolean;
+        createTimeEntry: (entry: Omit<CreateTimeEntryBody, 'member_id'>) => Promise<void>;
+        createClient: (client: CreateClientBody) => Promise<Client | undefined>;
+        createProject: (project: CreateProjectBody) => Promise<Project | undefined>;
+        createTag: (name: string) => Promise<Tag | undefined>;
+        tags: Tag[];
+        projects: Project[];
+        tasks: Task[];
+        clients: Client[];
+        start?: string;
+        end?: string;
+        currency: string;
+        organizationBillableRate: number | null;
+        canCreateProject: boolean;
+        tagsEnabled?: boolean;
+    }>(),
+    {
+        tagsEnabled: true,
+    }
+);
 
 const description = ref<HTMLInputElement | null>(null);
 
@@ -173,6 +179,7 @@ const billableProxy = computed({
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <TagDropdown
+                        v-if="tagsEnabled"
                         v-model="timeEntry.tags"
                         :create-tag
                         :tags="tags"

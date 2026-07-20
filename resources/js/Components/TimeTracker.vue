@@ -156,6 +156,7 @@ const { tags } = useTagsQuery();
         :currency="getOrganizationCurrencyString()"
         :can-create-project="canCreateProjects()"
         :organization-billable-rate="organization?.billable_rate ?? null"
+        :tags-enabled="page.props.auth.user.tags_enabled"
         :projects
         :tasks
         :tags

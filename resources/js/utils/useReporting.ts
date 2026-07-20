@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
-import { type Component } from 'vue';
+import { computed, type Component } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import { getCurrentRole, getCurrentUser } from '@/utils/useUser';
 import { useProjectsQuery } from '@/utils/useProjectsQuery';
 import { useMembersQuery } from '@/utils/useMembersQuery';
@@ -115,9 +116,16 @@ export const useReportingStore = defineStore('reporting', () => {
         },
     ];
 
+    const page = usePage<{ auth: { user: { tags_enabled: boolean } } }>();
+    const visibleGroupByOptions = computed(() =>
+        page.props.auth.user.tags_enabled
+            ? groupByOptions
+            : groupByOptions.filter((option) => option.value !== 'tag')
+    );
+
     return {
         getNameForReportingRowEntry,
-        groupByOptions,
+        groupByOptions: visibleGroupByOptions,
         emptyPlaceholder,
     };
 });

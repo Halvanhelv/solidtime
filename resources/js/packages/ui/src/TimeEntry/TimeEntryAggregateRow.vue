@@ -31,26 +31,32 @@ import {
 } from '@/packages/ui/src';
 import { PlayIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { twMerge } from 'tailwind-merge';
-const props = defineProps<{
-    timeEntry: TimeEntriesGroupedByType;
-    projects: Project[];
-    tasks: Task[];
-    tags: Tag[];
-    clients: Client[];
-    createTag: (name: string) => Promise<Tag | undefined>;
-    createProject: (project: CreateProjectBody) => Promise<Project | undefined>;
-    createClient: (client: CreateClientBody) => Promise<Client | undefined>;
-    onStartStopClick: (timeEntry: TimeEntry) => void;
-    duplicateTimeEntry: (timeEntry: TimeEntry) => void;
-    updateTimeEntries: (ids: string[], changes: Partial<TimeEntry>) => void;
-    updateTimeEntry: (timeEntry: TimeEntry) => void;
-    deleteTimeEntries: (timeEntries: TimeEntry[]) => void;
-    currency: string;
-    organizationBillableRate: number | null;
-    selectedTimeEntries: TimeEntry[];
-    enableEstimatedTime: boolean;
-    canCreateProject: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        timeEntry: TimeEntriesGroupedByType;
+        projects: Project[];
+        tasks: Task[];
+        tags: Tag[];
+        clients: Client[];
+        createTag: (name: string) => Promise<Tag | undefined>;
+        createProject: (project: CreateProjectBody) => Promise<Project | undefined>;
+        createClient: (client: CreateClientBody) => Promise<Client | undefined>;
+        onStartStopClick: (timeEntry: TimeEntry) => void;
+        duplicateTimeEntry: (timeEntry: TimeEntry) => void;
+        updateTimeEntries: (ids: string[], changes: Partial<TimeEntry>) => void;
+        updateTimeEntry: (timeEntry: TimeEntry) => void;
+        deleteTimeEntries: (timeEntries: TimeEntry[]) => void;
+        currency: string;
+        organizationBillableRate: number | null;
+        selectedTimeEntries: TimeEntry[];
+        enableEstimatedTime: boolean;
+        canCreateProject: boolean;
+        tagsEnabled?: boolean;
+    }>(),
+    {
+        tagsEnabled: true,
+    }
+);
 const emit = defineEmits<{
     selected: [TimeEntry[]];
     unselected: [TimeEntry[]];
@@ -147,6 +153,7 @@ function onSelectChange(checked: boolean) {
                         <div
                             class="hidden @lg:flex items-center font-medium space-x-1 @lg:space-x-2 shrink-0">
                             <TimeEntryRowTagDropdown
+                                v-if="tagsEnabled"
                                 :create-tag
                                 :tags="tags"
                                 :model-value="timeEntry.tags"
@@ -249,6 +256,7 @@ function onSelectChange(checked: boolean) {
                                     "></TimeTrackerProjectTaskDropdown>
                                 <div class="flex items-center shrink-0">
                                     <TimeEntryRowTagDropdown
+                                        v-if="tagsEnabled"
                                         :create-tag
                                         :tags="tags"
                                         :model-value="timeEntry.tags"
@@ -296,6 +304,7 @@ function onSelectChange(checked: boolean) {
                         :create-project
                         :organization-billable-rate="organizationBillableRate"
                         :tags="tags"
+                        :tags-enabled="tagsEnabled"
                         indent
                         :update-time-entry="(timeEntry: TimeEntry) => updateTimeEntry(timeEntry)"
                         :on-start-stop-click="() => onStartStopClick(subEntry)"

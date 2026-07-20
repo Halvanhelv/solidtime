@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TimeTracker from '@/Components/TimeTracker.vue';
+import { usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import MainContainer from '@/packages/ui/src/MainContainer.vue';
 import { storeToRefs } from 'pinia';
@@ -34,6 +35,8 @@ import { useProjectsStore } from '@/utils/useProjects';
 import { useClientsStore } from '@/utils/useClients';
 import { useTimeEntriesInfiniteQuery } from '@/utils/useTimeEntriesInfiniteQuery';
 import { useTimeEntriesMutations } from '@/utils/useTimeEntriesMutations';
+
+const page = usePage<{ auth: { user: { tags_enabled: boolean } } }>();
 
 const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isPending } =
     useTimeEntriesInfiniteQuery();
@@ -118,6 +121,7 @@ function deleteSelected() {
             :projects="projects"
             :tasks="tasks"
             :tags="tags"
+            :tags-enabled="page.props.auth.user.tags_enabled"
             :currency="getOrganizationCurrencyString()"
             :clients="clients"
             :organization-billable-rate="organization?.billable_rate ?? null"
@@ -153,7 +157,8 @@ function deleteSelected() {
             :currency="getOrganizationCurrencyString()"
             :time-entries="timeEntries"
             :group-similar-time-entries="groupSimilarTimeEntriesSetting"
-            :tags="tags"></TimeEntryGroupedTable>
+            :tags="tags"
+            :tags-enabled="page.props.auth.user.tags_enabled"></TimeEntryGroupedTable>
         <div v-if="isPending" class="flex justify-center items-center py-12">
             <LoadingSpinner></LoadingSpinner>
         </div>

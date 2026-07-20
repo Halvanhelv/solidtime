@@ -24,21 +24,27 @@ import type { Tag, Task } from '@/packages/api/src';
 const show = defineModel('show', { default: false });
 const saving = ref(false);
 
-const props = defineProps<{
-    timeEntries: TimeEntry[];
-    projects: Project[];
-    tasks: Task[];
-    clients: Client[];
-    tags: Tag[];
-    createProject: (project: CreateProjectBody) => Promise<Project | undefined>;
-    createClient: (client: CreateClientBody) => Promise<Client | undefined>;
-    createTag: (name: string) => Promise<Tag | undefined>;
-    updateTimeEntries: (changeset: UpdateMultipleTimeEntriesChangeset) => Promise<void>;
-    currency: string;
-    organizationBillableRate: number | null;
-    enableEstimatedTime: boolean;
-    canCreateProject: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        timeEntries: TimeEntry[];
+        projects: Project[];
+        tasks: Task[];
+        clients: Client[];
+        tags: Tag[];
+        createProject: (project: CreateProjectBody) => Promise<Project | undefined>;
+        createClient: (client: CreateClientBody) => Promise<Client | undefined>;
+        createTag: (name: string) => Promise<Tag | undefined>;
+        updateTimeEntries: (changeset: UpdateMultipleTimeEntriesChangeset) => Promise<void>;
+        currency: string;
+        organizationBillableRate: number | null;
+        enableEstimatedTime: boolean;
+        canCreateProject: boolean;
+        tagsEnabled?: boolean;
+    }>(),
+    {
+        tagsEnabled: true,
+    }
+);
 
 const emit = defineEmits<{
     submit: [];
@@ -171,7 +177,7 @@ watch(removeAllTags, () => {
                         :projects="projects"
                         :tasks="tasks"></TimeTrackerProjectTaskDropdown>
                 </Field>
-                <Field>
+                <Field v-if="tagsEnabled">
                     <FieldLabel>Tag</FieldLabel>
                     <div class="flex space-x-5">
                         <TagDropdown

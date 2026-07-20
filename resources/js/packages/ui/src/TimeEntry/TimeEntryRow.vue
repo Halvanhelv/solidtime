@@ -30,30 +30,36 @@ import {
 } from '@/packages/ui/src';
 import { PlayIcon, PencilIcon, DocumentDuplicateIcon, TrashIcon } from '@heroicons/vue/20/solid';
 
-const props = defineProps<{
-    timeEntry: TimeEntry;
-    indent?: boolean;
-    projects: Project[];
-    tasks: Task[];
-    tags: Tag[];
-    clients: Client[];
-    members?: Member[];
-    createTag: (name: string) => Promise<Tag | undefined>;
-    createProject: (project: CreateProjectBody) => Promise<Project | undefined>;
-    createClient: (client: CreateClientBody) => Promise<Client | undefined>;
-    onStartStopClick: () => void;
-    deleteTimeEntry: () => void;
-    duplicateTimeEntry?: () => void;
-    updateTimeEntry: (timeEntry: TimeEntry) => void;
-    currency: string;
-    organizationBillableRate: number | null;
-    showMember?: boolean;
-    showDate?: boolean;
-    selected?: boolean;
-    canCreateProject: boolean;
-    enableEstimatedTime: boolean;
-    isReport?: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        timeEntry: TimeEntry;
+        indent?: boolean;
+        projects: Project[];
+        tasks: Task[];
+        tags: Tag[];
+        clients: Client[];
+        members?: Member[];
+        createTag: (name: string) => Promise<Tag | undefined>;
+        createProject: (project: CreateProjectBody) => Promise<Project | undefined>;
+        createClient: (client: CreateClientBody) => Promise<Client | undefined>;
+        onStartStopClick: () => void;
+        deleteTimeEntry: () => void;
+        duplicateTimeEntry?: () => void;
+        updateTimeEntry: (timeEntry: TimeEntry) => void;
+        currency: string;
+        organizationBillableRate: number | null;
+        showMember?: boolean;
+        showDate?: boolean;
+        selected?: boolean;
+        canCreateProject: boolean;
+        enableEstimatedTime: boolean;
+        isReport?: boolean;
+        tagsEnabled?: boolean;
+    }>(),
+    {
+        tagsEnabled: true,
+    }
+);
 
 const emit = defineEmits<{ selected: []; unselected: [] }>();
 
@@ -154,6 +160,7 @@ async function handleDeleteTimeEntry() {
                                 {{ memberName }}
                             </div>
                             <TimeEntryRowTagDropdown
+                                v-if="tagsEnabled"
                                 :create-tag
                                 :tags="tags"
                                 :model-value="timeEntry.tags"
@@ -221,6 +228,7 @@ async function handleDeleteTimeEntry() {
                                     "></TimeTrackerProjectTaskDropdown>
                                 <div class="flex items-center shrink-0">
                                     <TimeEntryRowTagDropdown
+                                        v-if="tagsEnabled"
                                         :create-tag
                                         :tags="tags"
                                         :model-value="timeEntry.tags"
@@ -278,6 +286,7 @@ async function handleDeleteTimeEntry() {
         :create-project="createProject"
         :create-tag="createTag"
         :tags="tags"
+        :tags-enabled="tagsEnabled"
         :projects="projects"
         :tasks="tasks"
         :clients="clients"

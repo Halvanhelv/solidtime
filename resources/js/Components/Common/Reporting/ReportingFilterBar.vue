@@ -3,6 +3,7 @@ import { CheckCircleIcon, TagIcon, UserGroupIcon } from '@heroicons/vue/20/solid
 import { FolderIcon } from '@heroicons/vue/16/solid';
 import { Check } from '@lucide/vue';
 import { RadioGroupIndicator, RadioGroupItem, RadioGroupRoot, type AcceptableValue } from 'reka-ui';
+import { usePage } from '@inertiajs/vue3';
 import BillableIcon from '@/packages/ui/src/Icons/BillableIcon.vue';
 import ReportingRoundingControls from '@/Components/Common/Reporting/ReportingRoundingControls.vue';
 import TaskMultiselectDropdown from '@/Components/Common/Task/TaskMultiselectDropdown.vue';
@@ -36,6 +37,8 @@ const endDate = defineModel<string>('endDate', { required: true });
 const emit = defineEmits<{
     submit: [];
 }>();
+
+const page = usePage<{ auth: { user: { tags_enabled: boolean } } }>();
 
 const { tags } = useTagsQuery();
 
@@ -96,6 +99,7 @@ async function createTag(name: string) {
                     </template>
                 </ClientMultiselectDropdown>
                 <TagDropdown
+                    v-if="page.props.auth.user.tags_enabled"
                     v-model="selectedTags"
                     :create-tag
                     :tags="tags"

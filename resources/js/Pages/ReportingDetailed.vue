@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import MainContainer from '@/packages/ui/src/MainContainer.vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { usePage } from '@inertiajs/vue3';
 import PageTitle from '@/Components/Common/PageTitle.vue';
 import {
     ChartBarIcon,
@@ -62,6 +63,8 @@ import type { TagMatchType } from '@/types/reporting';
 
 // TimeEntryRoundingType is now defined in ReportingRoundingControls component
 type TimeEntryRoundingType = 'up' | 'down' | 'nearest';
+
+const page = usePage<{ auth: { user: { tags_enabled: boolean } } }>();
 
 const startDate = useSessionStorage<string>(
     'reporting-start-date',
@@ -456,6 +459,7 @@ async function downloadExport(format: ExportFormat) {
             :projects="projects"
             :tasks="tasks"
             :tags="tags"
+            :tags-enabled="page.props.auth.user.tags_enabled"
             :currency="getOrganizationCurrencyString()"
             :clients="clients"
             :organization-billable-rate="organization?.billable_rate ?? null"
@@ -534,6 +538,7 @@ async function downloadExport(format: ExportFormat) {
                     :projects="projects"
                     :tasks="tasks"
                     :tags="tags"
+                    :tags-enabled="page.props.auth.user.tags_enabled"
                     :clients
                     :create-tag
                     :update-time-entry
