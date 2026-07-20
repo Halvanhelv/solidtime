@@ -8,6 +8,17 @@
 
 **Tech Stack:** Laravel 12 (migration, Eloquent casts, FormRequest, API Resource), Scramble OpenAPI + `openapi-zod-client`, `model:typer`, Vue 3 `<script setup lang="ts">`, Inertia, TanStack Query, Pest (backend tests), vitest (frontend test), `bin/dev.sh` dev-loop.
 
+## Dev environment (how to run backend commands here)
+
+The running app is a **prod image** (baked source, no dev deps). Run all PHP/artisan/phpunit/type-gen through the throwaway-container helper `bin/dev-php.sh` (host source + host vendor with dev deps, on the running stack's network + a `solidtime_testing` DB):
+
+- Backend tests: `./bin/dev-php.sh ./vendor/bin/phpunit --filter=<name> --no-coverage`
+- Migrate dev DB: `./bin/dev-php.sh php artisan migrate`
+- models.ts: `./bin/dev-php.sh php artisan model:typer > resources/js/types/models.ts`
+- OpenAPI export (for zod): `./bin/dev-php.sh php artisan scramble:export --path=api.json` then `npx openapi-zod-client ./api.json --output resources/js/packages/api/src/openapi.json.client.ts --base-url /api`
+
+Frontend (`vue-tsc`, `vitest`, `eslint`, `npx`) runs directly on the host (node available). The project's test runner is **phpunit** (not Pest, not Sail).
+
 ## Global Constraints
 
 - Four columns, exact names: `calendar_enabled`, `timesheet_enabled`, `tags_enabled`, `dashboard_billable_widgets_enabled`. All `boolean`, `NOT NULL`, `default(true)`.
@@ -86,7 +97,7 @@ Match the file's existing helper for creating an authenticated user (e.g. `creat
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `./vendor/bin/sail artisan test --filter=feature_visibility` (or the project's test runner: `composer test -- --filter=feature_visibility`)
+Run: `./bin/dev-php.sh ./vendor/bin/phpunit --filter=feature_visibility --no-coverage`
 Expected: FAIL — column/attribute does not exist.
 
 - [ ] **Step 3: Create the migration**
@@ -221,7 +232,7 @@ In `app/Http/Resources/V1/User/UserResource.php::toArray()`, add after the `week
 
 - [ ] **Step 8: Run tests + migrate**
 
-Run: `./vendor/bin/sail artisan migrate` (dev DB), then `composer test -- --filter=feature_visibility`
+Run: `./bin/dev-php.sh php artisan migrate`, then `./bin/dev-php.sh ./vendor/bin/phpunit --filter=feature_visibility --no-coverage`
 Expected: both tests PASS.
 
 - [ ] **Step 9: Commit**
@@ -245,14 +256,14 @@ git commit -m "feat(user): add per-user feature visibility preference columns"
 
 - [ ] **Step 1: Regenerate the Eloquent-model TypeScript types**
 
-Run: `composer generate-typescript`
+Run: `./bin/dev-php.sh php artisan model:typer > resources/js/types/models.ts`
 Expected: `resources/js/types/models.ts` — the `User` type now lists `calendar_enabled: boolean;` etc.
 
 - [ ] **Step 2: Regenerate the API zod client**
 
 Ensure the app serves the OpenAPI doc, then run against the correct base URL (this repo runs on `:8000`, not `:80`):
 
-Run: `npx openapi-zod-client http://localhost:8000/docs/api.json --output resources/js/packages/api/src/openapi.json.client.ts --base-url /api`
+Run: `./bin/dev-php.sh php artisan scramble:export --path=api.json` then `npx openapi-zod-client ./api.json --output resources/js/packages/api/src/openapi.json.client.ts --base-url /api` (export from the new source, since the running app is baked). Delete the temporary `api.json` afterwards.
 Expected: the generated `User` schema and `UpdateUserBody` include the four optional booleans.
 
 - [ ] **Step 3: Type-check**
