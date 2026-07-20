@@ -28,9 +28,7 @@ describe('UserTimezoneMismatchModal', () => {
             props: { show: true },
         });
 
-        await wrapper
-            .findComponent(TimezoneMismatchModal)
-            .vm.$emit('update', 'Europe/Kiev');
+        await wrapper.findComponent(TimezoneMismatchModal).vm.$emit('update', 'Europe/Kiev');
 
         expect(mutateAsync).toHaveBeenCalledWith({
             userId: 'u1',
@@ -43,9 +41,7 @@ describe('UserTimezoneMismatchModal', () => {
             props: { show: true },
         });
 
-        await wrapper
-            .findComponent(TimezoneMismatchModal)
-            .vm.$emit('update', 'Europe/Kiev');
+        await wrapper.findComponent(TimezoneMismatchModal).vm.$emit('update', 'Europe/Kiev');
         await flushPromises();
 
         expect(wrapper.emitted('update:show')?.at(-1)).toEqual([false]);
