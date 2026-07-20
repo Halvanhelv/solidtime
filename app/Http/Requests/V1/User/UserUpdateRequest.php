@@ -58,6 +58,10 @@ class UserUpdateRequest extends BaseFormRequest
             'week_start' => [
                 Rule::enum(Weekday::class),
             ],
+            'calendar_enabled' => ['boolean'],
+            'timesheet_enabled' => ['boolean'],
+            'tags_enabled' => ['boolean'],
+            'dashboard_billable_widgets_enabled' => ['boolean'],
         ];
     }
 
@@ -79,6 +83,26 @@ class UserUpdateRequest extends BaseFormRequest
     public function getWeekStart(): ?Weekday
     {
         return $this->has('week_start') ? Weekday::from($this->input('week_start')) : null;
+    }
+
+    public function getCalendarEnabled(): ?bool
+    {
+        return $this->has('calendar_enabled') ? $this->boolean('calendar_enabled') : null;
+    }
+
+    public function getTimesheetEnabled(): ?bool
+    {
+        return $this->has('timesheet_enabled') ? $this->boolean('timesheet_enabled') : null;
+    }
+
+    public function getTagsEnabled(): ?bool
+    {
+        return $this->has('tags_enabled') ? $this->boolean('tags_enabled') : null;
+    }
+
+    public function getDashboardBillableWidgetsEnabled(): ?bool
+    {
+        return $this->has('dashboard_billable_widgets_enabled') ? $this->boolean('dashboard_billable_widgets_enabled') : null;
     }
 
     public function hasPhotoKey(): bool

@@ -36,6 +36,14 @@ class UserResource extends BaseResource
             'timezone' => $this->resource->timezone,
             /** @var Weekday $week_start Starting day of the week */
             'week_start' => $this->resource->week_start->value,
+            /** @var bool $calendar_enabled Whether Calendar is visible in this user's sidebar */
+            'calendar_enabled' => $this->resource->calendar_enabled,
+            /** @var bool $timesheet_enabled Whether Timesheet is visible in this user's sidebar */
+            'timesheet_enabled' => $this->resource->timesheet_enabled,
+            /** @var bool $tags_enabled Whether Tags (section, pickers, report grouping) are visible for this user */
+            'tags_enabled' => $this->resource->tags_enabled,
+            /** @var bool $dashboard_billable_widgets_enabled Whether the Dashboard billable widgets are visible for this user */
+            'dashboard_billable_widgets_enabled' => $this->resource->dashboard_billable_widgets_enabled,
         ];
     }
 }

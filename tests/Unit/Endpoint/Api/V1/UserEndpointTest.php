@@ -731,4 +731,52 @@ class UserEndpointTest extends ApiEndpointTestAbstract
         $response->assertNoContent();
         $this->assertDatabaseMissing(User::class, ['id' => $data->user->getKey()]);
     }
+
+    public function test_update_endpoint_persists_feature_visibility_flags(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission();
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->putJson(route('api.v1.users.update', $data->user->getKey()), [
+            'calendar_enabled' => false,
+            'timesheet_enabled' => false,
+            'tags_enabled' => false,
+            'dashboard_billable_widgets_enabled' => false,
+        ]);
+
+        // Assert
+        $response->assertSuccessful();
+        $response->assertJsonPath('data.calendar_enabled', false);
+        $response->assertJsonPath('data.timesheet_enabled', false);
+        $response->assertJsonPath('data.tags_enabled', false);
+        $response->assertJsonPath('data.dashboard_billable_widgets_enabled', false);
+
+        $user = $data->user->fresh();
+        $this->assertFalse($user->calendar_enabled);
+        $this->assertFalse($user->timesheet_enabled);
+        $this->assertFalse($user->tags_enabled);
+        $this->assertFalse($user->dashboard_billable_widgets_enabled);
+    }
+
+    public function test_feature_visibility_flags_default_true_and_survive_partial_update(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission();
+        $this->assertTrue($data->user->calendar_enabled);
+        Passport::actingAs($data->user);
+
+        // Act
+        // Partial update that omits the flags must leave them unchanged.
+        $response = $this->putJson(route('api.v1.users.update', $data->user->getKey()), [
+            'name' => 'Renamed',
+        ]);
+
+        // Assert
+        $response->assertSuccessful();
+        $user = $data->user->fresh();
+        $this->assertTrue($user->calendar_enabled);
+        $this->assertTrue($user->tags_enabled);
+    }
 }

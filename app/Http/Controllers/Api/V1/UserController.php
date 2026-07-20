@@ -124,6 +124,19 @@ class UserController extends Controller
             $user->week_start = $request->getWeekStart();
         }
 
+        if ($request->getCalendarEnabled() !== null) {
+            $user->calendar_enabled = $request->getCalendarEnabled();
+        }
+        if ($request->getTimesheetEnabled() !== null) {
+            $user->timesheet_enabled = $request->getTimesheetEnabled();
+        }
+        if ($request->getTagsEnabled() !== null) {
+            $user->tags_enabled = $request->getTagsEnabled();
+        }
+        if ($request->getDashboardBillableWidgetsEnabled() !== null) {
+            $user->dashboard_billable_widgets_enabled = $request->getDashboardBillableWidgetsEnabled();
+        }
+
         $user->save();
 
         if ($emailToVerify !== null) {
