@@ -30,6 +30,8 @@ class UserEndpointTest extends ApiEndpointTestAbstract
     {
         // Arrange
         $data = $this->createUserWithPermission();
+        $data->user->hidden_nav_items = ['tags'];
+        $data->user->save();
         Passport::actingAs($data->user);
 
         // Act
@@ -47,6 +49,7 @@ class UserEndpointTest extends ApiEndpointTestAbstract
                 'week_start' => $data->user->week_start->value,
             ],
         ]);
+        $response->assertJsonPath('data.hidden_nav_items', ['tags']);
     }
 
     public function test_update_current_organization_fails_when_not_authenticated(): void
@@ -781,5 +784,64 @@ class UserEndpointTest extends ApiEndpointTestAbstract
         // Assert
         $response->assertSuccessful();
         $this->assertSame(['tags'], $data->user->fresh()->hidden_nav_items);
+    }
+
+    public function test_update_endpoint_can_clear_hidden_nav_items_with_empty_array(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission();
+        $data->user->hidden_nav_items = ['tags'];
+        $data->user->save();
+        Passport::actingAs($data->user);
+
+        // Act
+        // Key present but with an empty array value: this is the "clear" path,
+        // distinct from omitting the key entirely (which leaves the value unchanged).
+        $response = $this->putJson(route('api.v1.users.update', $data->user->getKey()), [
+            'hidden_nav_items' => [],
+        ]);
+
+        // Assert
+        $response->assertSuccessful();
+        $response->assertJsonPath('data.hidden_nav_items', []);
+        $this->assertSame([], $data->user->fresh()->hidden_nav_items);
+    }
+
+    public function test_update_endpoint_rejects_non_array_hidden_nav_items(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission();
+        $data->user->hidden_nav_items = ['tags'];
+        $data->user->save();
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->putJson(route('api.v1.users.update', $data->user->getKey()), [
+            'hidden_nav_items' => 'tags',
+        ]);
+
+        // Assert
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors(['hidden_nav_items']);
+        $this->assertSame(['tags'], $data->user->fresh()->hidden_nav_items);
+    }
+
+    public function test_update_endpoint_accepts_duplicate_hidden_nav_items(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission();
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->putJson(route('api.v1.users.update', $data->user->getKey()), [
+            'hidden_nav_items' => ['tags', 'tags'],
+        ]);
+
+        // Assert
+        // Documents current behavior: duplicates are validated per-item (each is a
+        // valid enum value) and are NOT deduplicated before being persisted.
+        $response->assertSuccessful();
+        $response->assertJsonPath('data.hidden_nav_items', ['tags', 'tags']);
+        $this->assertSame(['tags', 'tags'], $data->user->fresh()->hidden_nav_items);
     }
 }
