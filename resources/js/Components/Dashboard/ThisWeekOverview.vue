@@ -24,6 +24,7 @@ import { getOrganizationCurrencyString } from '@/utils/money';
 import { useQuery } from '@tanstack/vue-query';
 import { getCurrentOrganizationId } from '@/utils/useUser';
 import { api, type Organization } from '@/packages/api/src';
+import { usePage } from '@inertiajs/vue3';
 
 use([CanvasRenderer, BarChart, TitleComponent, GridComponent, TooltipComponent, LegendComponent]);
 
@@ -58,6 +59,11 @@ const accentColor = useCssVariable('--theme-color-chart');
 
 // Get the organization ID using the utility function
 const organizationId = computed(() => getCurrentOrganizationId());
+
+const page = usePage<{ auth: { user: { dashboard_billable_widgets_enabled: boolean } } }>();
+const billableWidgetsEnabled = computed(
+    () => page.props.auth.user.dashboard_billable_widgets_enabled
+);
 
 const organization = inject<ComputedRef<Organization>>('organization');
 
@@ -97,7 +103,7 @@ const { data: totalWeeklyBillableTime } = useQuery({
             },
         });
     },
-    enabled: computed(() => !!organizationId.value),
+    enabled: computed(() => !!organizationId.value && billableWidgetsEnabled.value),
     staleTime: 1000 * 30, // 30 seconds
 });
 
@@ -110,7 +116,7 @@ const { data: totalWeeklyBillableAmount } = useQuery({
             },
         });
     },
-    enabled: computed(() => !!organizationId.value),
+    enabled: computed(() => !!organizationId.value && billableWidgetsEnabled.value),
     staleTime: 1000 * 30, // 30 seconds
 });
 
@@ -260,6 +266,7 @@ const option = computed(() => {
                         : '--'
                 " />
             <StatCard
+                v-if="billableWidgetsEnabled"
                 title="Billable Time"
                 :value="
                     totalWeeklyBillableTime
@@ -271,6 +278,7 @@ const option = computed(() => {
                         : '--'
                 " />
             <StatCard
+                v-if="billableWidgetsEnabled"
                 title="Billable Amount"
                 :value="
                     totalWeeklyBillableAmount
