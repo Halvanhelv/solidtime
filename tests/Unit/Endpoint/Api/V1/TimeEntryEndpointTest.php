@@ -21,7 +21,9 @@ use App\Models\Tag;
 use App\Models\Task;
 use App\Models\TimeEntry;
 use App\Models\User;
+use App\Service\LocalizationService;
 use App\Service\TimeEntryFilter;
+use Carbon\CarbonInterval;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -160,6 +162,195 @@ class TimeEntryEndpointTest extends ApiEndpointTestAbstract
         $response->assertJsonPath('data.0.id', $timeEntry1->getKey());
         $response->assertJsonPath('data.1.id', $timeEntry2->getKey());
         $response->assertJsonPath('data.2.id', $timeEntry3->getKey());
+    }
+
+    public function test_index_endpoint_sorts_by_start_ascending(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:own',
+        ]);
+        $timeEntry1 = TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->create([
+            'start' => Carbon::now()->subDays(3),
+        ]);
+        $timeEntry2 = TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->create([
+            'start' => Carbon::now()->subDays(2),
+        ]);
+        $timeEntry3 = TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->create([
+            'start' => Carbon::now()->subDay(),
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.index', [
+            $data->organization->getKey(),
+            'member_id' => $data->member->getKey(),
+            'sort_by' => 'start',
+            'sort_order' => 'asc',
+        ]));
+
+        // Assert
+        $this->assertResponseCode($response, 200);
+        $response->assertJsonPath('data.0.id', $timeEntry1->getKey());
+        $response->assertJsonPath('data.1.id', $timeEntry2->getKey());
+        $response->assertJsonPath('data.2.id', $timeEntry3->getKey());
+    }
+
+    public function test_index_endpoint_sorts_by_description_ascending(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:own',
+        ]);
+        $timeEntryA = TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->create([
+            'description' => 'Alpha task',
+        ]);
+        $timeEntryB = TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->create([
+            'description' => 'Bravo task',
+        ]);
+        $timeEntryC = TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->create([
+            'description' => 'Charlie task',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.index', [
+            $data->organization->getKey(),
+            'member_id' => $data->member->getKey(),
+            'sort_by' => 'description',
+            'sort_order' => 'asc',
+        ]));
+
+        // Assert
+        $this->assertResponseCode($response, 200);
+        $response->assertJsonPath('data.0.id', $timeEntryA->getKey());
+        $response->assertJsonPath('data.1.id', $timeEntryB->getKey());
+        $response->assertJsonPath('data.2.id', $timeEntryC->getKey());
+    }
+
+    public function test_index_endpoint_sorts_by_description_descending(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:own',
+        ]);
+        $timeEntryA = TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->create([
+            'description' => 'Alpha task',
+        ]);
+        $timeEntryB = TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->create([
+            'description' => 'Bravo task',
+        ]);
+        $timeEntryC = TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->create([
+            'description' => 'Charlie task',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.index', [
+            $data->organization->getKey(),
+            'member_id' => $data->member->getKey(),
+            'sort_by' => 'description',
+            'sort_order' => 'desc',
+        ]));
+
+        // Assert
+        $this->assertResponseCode($response, 200);
+        $response->assertJsonPath('data.0.id', $timeEntryC->getKey());
+        $response->assertJsonPath('data.1.id', $timeEntryB->getKey());
+        $response->assertJsonPath('data.2.id', $timeEntryA->getKey());
+    }
+
+    public function test_index_endpoint_sorts_by_duration_descending_treats_still_running_entry_as_now_minus_start(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:own',
+        ]);
+        // Finished entry with the longest duration (20 minutes).
+        $longEntry = TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->startWithDuration(Carbon::now()->subHours(3), 1200)->create();
+        // Still running entry (no end), started 10 minutes ago, so its "duration" is (now - start) ~= 10 minutes.
+        $runningEntry = TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->active()->create([
+            'start' => Carbon::now()->subMinutes(10),
+        ]);
+        // Finished entry with the shortest duration (2 minutes).
+        $shortEntry = TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->startWithDuration(Carbon::now()->subHours(1), 120)->create();
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.index', [
+            $data->organization->getKey(),
+            'member_id' => $data->member->getKey(),
+            'sort_by' => 'duration',
+            'sort_order' => 'desc',
+        ]));
+
+        // Assert
+        $this->assertResponseCode($response, 200);
+        $response->assertJsonPath('data.0.id', $longEntry->getKey());
+        $response->assertJsonPath('data.1.id', $runningEntry->getKey());
+        $response->assertJsonPath('data.2.id', $shortEntry->getKey());
+    }
+
+    public function test_index_endpoint_fails_for_invalid_sort_by_value(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:own',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.index', [
+            $data->organization->getKey(),
+            'sort_by' => 'foo',
+        ]));
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrorFor('sort_by');
+    }
+
+    public function test_index_endpoint_fails_for_invalid_sort_order_value(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:own',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.index', [
+            $data->organization->getKey(),
+            'sort_by' => 'start',
+            'sort_order' => 'upsidedown',
+        ]));
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrorFor('sort_order');
+    }
+
+    public function test_index_export_endpoint_accepts_sort_by_and_sort_order_params(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->create();
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.index-export', [
+            $data->organization->getKey(),
+            'format' => ExportFormat::CSV,
+            'start' => Carbon::now()->startOfYear()->toIso8601ZuluString(),
+            'end' => Carbon::now()->endOfYear()->toIso8601ZuluString(),
+            'sort_by' => 'duration',
+            'sort_order' => 'asc',
+        ]));
+
+        // Assert
+        $this->assertResponseCode($response, 200);
     }
 
     public function test_index_endpoint_returns_only_active_time_entries(): void
@@ -846,6 +1037,99 @@ class TimeEntryEndpointTest extends ApiEndpointTestAbstract
             'key' => 'pdf_renderer_is_not_configured',
             'message' => 'PDF renderer is not configured',
         ]);
+    }
+
+    public function test_index_export_endpoint_in_debug_mode_returns_rendered_html_without_calling_gotenberg(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+        $this->actAsOrganizationWithSubscription();
+        // Gotenberg is not configured at all, if the controller tried to call it despite debug=true, this would blow up.
+        Config::set('services.gotenberg.url', null);
+        TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->billable()->startWithDuration(Carbon::now()->subHours(2), 3600)->create();
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.index-export', [
+            $data->organization->getKey(),
+            'format' => ExportFormat::PDF,
+            'start' => Carbon::now()->startOfYear()->toIso8601ZuluString(),
+            'end' => Carbon::now()->endOfYear()->toIso8601ZuluString(),
+            'debug' => 'true',
+        ]));
+
+        // Assert
+        $this->assertResponseCode($response, 200);
+        $html = $response->json('html');
+        $this->assertIsString($html);
+        $this->assertIsString($response->json('footer_html'));
+        $this->assertStringNotContainsString('Total cost', $html);
+        $this->assertStringContainsString('Billable', $html);
+    }
+
+    public function test_index_export_endpoint_in_debug_mode_pdf_billable_figure_only_includes_billable_time(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+        $this->actAsOrganizationWithSubscription();
+        Config::set('services.gotenberg.url', null);
+        // 1 hour billable + 30 minutes non-billable. The "Billable" header figure must reflect
+        // only the billable entry's duration (1h), not the combined total (1h30m).
+        TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->billable()->startWithDuration(Carbon::now()->subHours(3), 3600)->create();
+        TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->notBillable()->startWithDuration(Carbon::now()->subHours(5), 1800)->create();
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.index-export', [
+            $data->organization->getKey(),
+            'format' => ExportFormat::PDF,
+            'start' => Carbon::now()->startOfYear()->toIso8601ZuluString(),
+            'end' => Carbon::now()->endOfYear()->toIso8601ZuluString(),
+            'debug' => 'true',
+        ]));
+
+        // Assert
+        $this->assertResponseCode($response, 200);
+        $html = $response->json('html');
+        $localizationService = LocalizationService::forOrganization($data->organization->fresh());
+        $expectedBillableFigure = $localizationService->formatIntervalForReporting(CarbonInterval::seconds(3600));
+        $this->assertStringContainsString($expectedBillableFigure, $html);
+    }
+
+    public function test_aggregate_export_endpoint_in_debug_mode_returns_rendered_html_without_calling_gotenberg(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+        $this->actAsOrganizationWithSubscription();
+        Config::set('services.gotenberg.url', null);
+        TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->billable()->startWithDuration(Carbon::now()->subHours(2), 3600)->create();
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate-export', [
+            $data->organization->getKey(),
+            'format' => ExportFormat::PDF,
+            'group' => TimeEntryAggregationType::User,
+            'sub_group' => TimeEntryAggregationType::Project,
+            'history_group' => TimeEntryAggregationTypeInterval::Month,
+            'start' => Carbon::now()->startOfYear()->toIso8601ZuluString(),
+            'end' => Carbon::now()->endOfYear()->toIso8601ZuluString(),
+            'debug' => 'true',
+        ]));
+
+        // Assert
+        $this->assertResponseCode($response, 200);
+        $html = $response->json('html');
+        $this->assertIsString($html);
+        $this->assertIsString($response->json('footer_html'));
+        $this->assertStringNotContainsString('Total cost', $html);
+        $this->assertStringContainsString('Billable', $html);
     }
 
     public function test_index_export_endpoint_fails_if_user_wants_a_pdf_export_but_has_no_subscription(): void
