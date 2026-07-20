@@ -136,6 +136,18 @@ class UserController extends Controller
         if ($request->getDashboardBillableWidgetsEnabled() !== null) {
             $user->dashboard_billable_widgets_enabled = $request->getDashboardBillableWidgetsEnabled();
         }
+        if ($request->getTimeEnabled() !== null) {
+            $user->time_enabled = $request->getTimeEnabled();
+        }
+        if ($request->getClientsEnabled() !== null) {
+            $user->clients_enabled = $request->getClientsEnabled();
+        }
+        if ($request->getImportEnabled() !== null) {
+            $user->import_enabled = $request->getImportEnabled();
+        }
+        if ($request->getReportingSharedEnabled() !== null) {
+            $user->reporting_shared_enabled = $request->getReportingSharedEnabled();
+        }
 
         $user->save();
 

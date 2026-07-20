@@ -16,6 +16,10 @@ const prefs = reactive({
     timesheet_enabled: true,
     tags_enabled: true,
     dashboard_billable_widgets_enabled: true,
+    time_enabled: true,
+    clients_enabled: true,
+    import_enabled: true,
+    reporting_shared_enabled: true,
 });
 
 let seeded = false;
@@ -27,6 +31,10 @@ watch(
             prefs.timesheet_enabled = u.timesheet_enabled;
             prefs.tags_enabled = u.tags_enabled;
             prefs.dashboard_billable_widgets_enabled = u.dashboard_billable_widgets_enabled;
+            prefs.time_enabled = u.time_enabled;
+            prefs.clients_enabled = u.clients_enabled;
+            prefs.import_enabled = u.import_enabled;
+            prefs.reporting_shared_enabled = u.reporting_shared_enabled;
             seeded = true;
         }
     },
@@ -64,6 +72,18 @@ const rows: { key: keyof typeof prefs; label: string; description: string }[] = 
         key: 'dashboard_billable_widgets_enabled',
         label: 'Billable widgets',
         description: 'Show Billable Time / Billable Amount on the dashboard.',
+    },
+    { key: 'time_enabled', label: 'Time', description: 'Show the Time tracker in the sidebar.' },
+    { key: 'clients_enabled', label: 'Clients', description: 'Show Clients in the sidebar.' },
+    {
+        key: 'import_enabled',
+        label: 'Import / Export',
+        description: 'Show Import / Export in the sidebar.',
+    },
+    {
+        key: 'reporting_shared_enabled',
+        label: 'Shared reports',
+        description: 'Show the Shared tab in Reporting.',
     },
 ];
 </script>

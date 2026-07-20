@@ -177,6 +177,7 @@ const page = usePage<{
                                 :href="route('dashboard')"
                                 :current="route().current('dashboard')"></NavigationSidebarItem>
                             <NavigationSidebarItem
+                                v-if="page.props.auth.user.time_enabled"
                                 title="Time"
                                 :icon="ClockIcon"
                                 :current="route().current('time')"
@@ -210,7 +211,7 @@ const page = usePage<{
                                     {
                                         title: 'Shared',
                                         route: 'reporting.shared',
-                                        show: canViewReport(),
+                                        show: canViewReport() && page.props.auth.user.reporting_shared_enabled,
                                     },
                                 ]"
                                 :current="
@@ -234,7 +235,7 @@ const page = usePage<{
                                 :href="route('projects')"
                                 :current="route().current('projects')"></NavigationSidebarItem>
                             <NavigationSidebarItem
-                                v-if="canViewClients()"
+                                v-if="canViewClients() && page.props.auth.user.clients_enabled"
                                 title="Clients"
                                 :icon="UserCircleIcon"
                                 :current="route().current('clients')"
@@ -273,7 +274,7 @@ const page = usePage<{
                                 :icon="CreditCardIcon"
                                 href="/billing"></NavigationSidebarItem>
                             <NavigationSidebarItem
-                                v-if="canUpdateOrganization()"
+                                v-if="canUpdateOrganization() && page.props.auth.user.import_enabled"
                                 title="Import / Export"
                                 :icon="ArrowsRightLeftIcon"
                                 :current="route().current('import')"

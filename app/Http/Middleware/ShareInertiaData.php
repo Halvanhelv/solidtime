@@ -50,6 +50,10 @@ class ShareInertiaData
                         'timesheet_enabled' => $user->timesheet_enabled,
                         'tags_enabled' => $user->tags_enabled,
                         'dashboard_billable_widgets_enabled' => $user->dashboard_billable_widgets_enabled,
+                        'time_enabled' => $user->time_enabled,
+                        'clients_enabled' => $user->clients_enabled,
+                        'import_enabled' => $user->import_enabled,
+                        'reporting_shared_enabled' => $user->reporting_shared_enabled,
                         'profile_photo_url' => $user->profile_photo_url,
                         'two_factor_enabled' => Features::enabled(Features::twoFactorAuthentication())
                             && ! is_null($user->two_factor_secret),

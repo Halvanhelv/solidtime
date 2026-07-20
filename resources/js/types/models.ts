@@ -97,6 +97,10 @@ export interface User {
     timesheet_enabled: boolean;
     tags_enabled: boolean;
     dashboard_billable_widgets_enabled: boolean;
+    time_enabled: boolean;
+    clients_enabled: boolean;
+    import_enabled: boolean;
+    reporting_shared_enabled: boolean;
     // mutators
     profile_photo_url: string;
     // relations

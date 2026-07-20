@@ -126,6 +126,9 @@ export function useCommandPalette() {
     const currentOrgId = computed(() => page.props.auth.user.current_team_id || '');
     const calendarEnabled = computed(() => page.props.auth.user.calendar_enabled);
     const tagsEnabled = computed(() => page.props.auth.user.tags_enabled);
+    const timeEnabled = computed(() => page.props.auth.user.time_enabled);
+    const clientsEnabled = computed(() => page.props.auth.user.clients_enabled);
+    const importEnabled = computed(() => page.props.auth.user.import_enabled);
 
     const lastTimeEntry = computed(() => {
         const pages = timeEntriesQuery.data.value?.pages;
@@ -265,6 +268,9 @@ export function useCommandPalette() {
                 canUpdateOrganization,
                 calendarEnabled: calendarEnabled.value,
                 tagsEnabled: tagsEnabled.value,
+                timeEnabled: timeEnabled.value,
+                clientsEnabled: clientsEnabled.value,
+                importEnabled: importEnabled.value,
             },
             {
                 isInvoicingActivated,

@@ -744,6 +744,10 @@ class UserEndpointTest extends ApiEndpointTestAbstract
             'timesheet_enabled' => false,
             'tags_enabled' => false,
             'dashboard_billable_widgets_enabled' => false,
+            'time_enabled' => false,
+            'clients_enabled' => false,
+            'import_enabled' => false,
+            'reporting_shared_enabled' => false,
         ]);
 
         // Assert
@@ -752,12 +756,20 @@ class UserEndpointTest extends ApiEndpointTestAbstract
         $response->assertJsonPath('data.timesheet_enabled', false);
         $response->assertJsonPath('data.tags_enabled', false);
         $response->assertJsonPath('data.dashboard_billable_widgets_enabled', false);
+        $response->assertJsonPath('data.time_enabled', false);
+        $response->assertJsonPath('data.clients_enabled', false);
+        $response->assertJsonPath('data.import_enabled', false);
+        $response->assertJsonPath('data.reporting_shared_enabled', false);
 
         $user = $data->user->fresh();
         $this->assertFalse($user->calendar_enabled);
         $this->assertFalse($user->timesheet_enabled);
         $this->assertFalse($user->tags_enabled);
         $this->assertFalse($user->dashboard_billable_widgets_enabled);
+        $this->assertFalse($user->time_enabled);
+        $this->assertFalse($user->clients_enabled);
+        $this->assertFalse($user->import_enabled);
+        $this->assertFalse($user->reporting_shared_enabled);
     }
 
     public function test_feature_visibility_flags_default_true_and_survive_partial_update(): void
@@ -768,6 +780,10 @@ class UserEndpointTest extends ApiEndpointTestAbstract
         $this->assertTrue($data->user->timesheet_enabled);
         $this->assertTrue($data->user->tags_enabled);
         $this->assertTrue($data->user->dashboard_billable_widgets_enabled);
+        $this->assertTrue($data->user->time_enabled);
+        $this->assertTrue($data->user->clients_enabled);
+        $this->assertTrue($data->user->import_enabled);
+        $this->assertTrue($data->user->reporting_shared_enabled);
         Passport::actingAs($data->user);
 
         // Act

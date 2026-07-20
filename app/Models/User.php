@@ -46,6 +46,10 @@ use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
  * @property bool $timesheet_enabled
  * @property bool $tags_enabled
  * @property bool $dashboard_billable_widgets_enabled
+ * @property bool $time_enabled
+ * @property bool $clients_enabled
+ * @property bool $import_enabled
+ * @property bool $reporting_shared_enabled
  * @property string|null $profile_photo_path
  * @property-read Organization|null $currentOrganization
  * @property-read string $profile_photo_url
@@ -86,6 +90,10 @@ class User extends Authenticatable implements AuditableContract, FilamentUser, M
         'email',
         'password',
         'calendar_enabled',
+        'time_enabled',
+        'clients_enabled',
+        'import_enabled',
+        'reporting_shared_enabled',
         'timesheet_enabled',
         'tags_enabled',
         'dashboard_billable_widgets_enabled',
@@ -117,6 +125,10 @@ class User extends Authenticatable implements AuditableContract, FilamentUser, M
         'is_placeholder' => 'boolean',
         'week_start' => Weekday::class,
         'calendar_enabled' => 'boolean',
+        'time_enabled' => 'boolean',
+        'clients_enabled' => 'boolean',
+        'import_enabled' => 'boolean',
+        'reporting_shared_enabled' => 'boolean',
         'timesheet_enabled' => 'boolean',
         'tags_enabled' => 'boolean',
         'dashboard_billable_widgets_enabled' => 'boolean',
@@ -130,6 +142,10 @@ class User extends Authenticatable implements AuditableContract, FilamentUser, M
     protected $attributes = [
         'week_start' => Weekday::Monday,
         'calendar_enabled' => true,
+        'time_enabled' => true,
+        'clients_enabled' => true,
+        'import_enabled' => true,
+        'reporting_shared_enabled' => true,
         'timesheet_enabled' => true,
         'tags_enabled' => true,
         'dashboard_billable_widgets_enabled' => true,

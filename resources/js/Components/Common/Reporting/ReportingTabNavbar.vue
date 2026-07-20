@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { canViewReport } from '@/utils/permissions';
 import { computed } from 'vue';
 import { TabBar, TabBarItem } from '@/packages/ui/src';
@@ -8,7 +8,10 @@ const props = defineProps<{
     active: 'reporting' | 'detailed' | 'shared';
 }>();
 
-const showSharedReports = computed(() => canViewReport());
+const page = usePage<{ auth: { user: { reporting_shared_enabled: boolean } } }>();
+const showSharedReports = computed(
+    () => canViewReport() && page.props.auth.user.reporting_shared_enabled
+);
 
 const tabs = computed(() => {
     const items = [

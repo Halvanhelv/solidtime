@@ -700,6 +700,10 @@ const UserResource = z
         timesheet_enabled: z.boolean(),
         tags_enabled: z.boolean(),
         dashboard_billable_widgets_enabled: z.boolean(),
+        time_enabled: z.boolean(),
+        clients_enabled: z.boolean(),
+        import_enabled: z.boolean(),
+        reporting_shared_enabled: z.boolean(),
     })
     .passthrough();
 const UserUpdateRequest = z
@@ -713,6 +717,10 @@ const UserUpdateRequest = z
         timesheet_enabled: z.boolean(),
         tags_enabled: z.boolean(),
         dashboard_billable_widgets_enabled: z.boolean(),
+        time_enabled: z.boolean(),
+        clients_enabled: z.boolean(),
+        import_enabled: z.boolean(),
+        reporting_shared_enabled: z.boolean(),
     })
     .partial()
     .passthrough();

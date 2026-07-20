@@ -62,6 +62,10 @@ class UserUpdateRequest extends BaseFormRequest
             'timesheet_enabled' => ['boolean'],
             'tags_enabled' => ['boolean'],
             'dashboard_billable_widgets_enabled' => ['boolean'],
+            'time_enabled' => ['boolean'],
+            'clients_enabled' => ['boolean'],
+            'import_enabled' => ['boolean'],
+            'reporting_shared_enabled' => ['boolean'],
         ];
     }
 
@@ -103,6 +107,26 @@ class UserUpdateRequest extends BaseFormRequest
     public function getDashboardBillableWidgetsEnabled(): ?bool
     {
         return $this->has('dashboard_billable_widgets_enabled') ? $this->boolean('dashboard_billable_widgets_enabled') : null;
+    }
+
+    public function getTimeEnabled(): ?bool
+    {
+        return $this->has('time_enabled') ? $this->boolean('time_enabled') : null;
+    }
+
+    public function getClientsEnabled(): ?bool
+    {
+        return $this->has('clients_enabled') ? $this->boolean('clients_enabled') : null;
+    }
+
+    public function getImportEnabled(): ?bool
+    {
+        return $this->has('import_enabled') ? $this->boolean('import_enabled') : null;
+    }
+
+    public function getReportingSharedEnabled(): ?bool
+    {
+        return $this->has('reporting_shared_enabled') ? $this->boolean('reporting_shared_enabled') : null;
     }
 
     public function hasPhotoKey(): bool

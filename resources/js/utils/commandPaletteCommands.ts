@@ -71,6 +71,9 @@ export function createNavigationCommands(
         canUpdateOrganization: () => boolean;
         calendarEnabled: boolean;
         tagsEnabled: boolean;
+        timeEnabled: boolean;
+        clientsEnabled: boolean;
+        importEnabled: boolean;
     },
     features: {
         isInvoicingActivated: () => boolean;
@@ -95,6 +98,7 @@ export function createNavigationCommands(
             keywords: ['time', 'tracking', 'entries', 'timesheet'],
             group: 'navigation',
             action: () => navigate('time'),
+            permission: () => permissions.timeEnabled,
             priority: GROUP_PRIORITIES.navigation + 9,
         },
         {
@@ -152,7 +156,7 @@ export function createNavigationCommands(
             keywords: ['clients', 'customers'],
             group: 'navigation',
             action: () => navigate('clients'),
-            permission: permissions.canViewClients,
+            permission: () => permissions.canViewClients() && permissions.clientsEnabled,
             priority: GROUP_PRIORITIES.navigation + 3,
         },
         {
@@ -204,7 +208,7 @@ export function createNavigationCommands(
             keywords: ['import', 'export', 'data', 'backup'],
             group: 'navigation',
             action: () => navigate('import'),
-            permission: permissions.canUpdateOrganization,
+            permission: () => permissions.canUpdateOrganization() && permissions.importEnabled,
             priority: GROUP_PRIORITIES.navigation - 2,
         },
         {
