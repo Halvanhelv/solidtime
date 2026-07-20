@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\V1\User;
 
+use App\Enums\HideableNavItem;
 use App\Enums\Weekday;
 use App\Http\Requests\V1\BaseFormRequest;
 use App\Models\User;
@@ -58,14 +59,8 @@ class UserUpdateRequest extends BaseFormRequest
             'week_start' => [
                 Rule::enum(Weekday::class),
             ],
-            'calendar_enabled' => ['boolean'],
-            'timesheet_enabled' => ['boolean'],
-            'tags_enabled' => ['boolean'],
-            'dashboard_billable_widgets_enabled' => ['boolean'],
-            'time_enabled' => ['boolean'],
-            'clients_enabled' => ['boolean'],
-            'import_enabled' => ['boolean'],
-            'reporting_shared_enabled' => ['boolean'],
+            'hidden_nav_items' => ['array'],
+            'hidden_nav_items.*' => [Rule::enum(HideableNavItem::class)],
         ];
     }
 
@@ -89,44 +84,17 @@ class UserUpdateRequest extends BaseFormRequest
         return $this->has('week_start') ? Weekday::from($this->input('week_start')) : null;
     }
 
-    public function getCalendarEnabled(): ?bool
+    /**
+     * @return array<int, string>|null
+     */
+    public function getHiddenNavItems(): ?array
     {
-        return $this->has('calendar_enabled') ? $this->boolean('calendar_enabled') : null;
-    }
+        if (! $this->has('hidden_nav_items')) {
+            return null;
+        }
+        $value = $this->input('hidden_nav_items');
 
-    public function getTimesheetEnabled(): ?bool
-    {
-        return $this->has('timesheet_enabled') ? $this->boolean('timesheet_enabled') : null;
-    }
-
-    public function getTagsEnabled(): ?bool
-    {
-        return $this->has('tags_enabled') ? $this->boolean('tags_enabled') : null;
-    }
-
-    public function getDashboardBillableWidgetsEnabled(): ?bool
-    {
-        return $this->has('dashboard_billable_widgets_enabled') ? $this->boolean('dashboard_billable_widgets_enabled') : null;
-    }
-
-    public function getTimeEnabled(): ?bool
-    {
-        return $this->has('time_enabled') ? $this->boolean('time_enabled') : null;
-    }
-
-    public function getClientsEnabled(): ?bool
-    {
-        return $this->has('clients_enabled') ? $this->boolean('clients_enabled') : null;
-    }
-
-    public function getImportEnabled(): ?bool
-    {
-        return $this->has('import_enabled') ? $this->boolean('import_enabled') : null;
-    }
-
-    public function getReportingSharedEnabled(): ?bool
-    {
-        return $this->has('reporting_shared_enabled') ? $this->boolean('reporting_shared_enabled') : null;
+        return is_array($value) ? array_values(array_map('strval', $value)) : [];
     }
 
     public function hasPhotoKey(): bool

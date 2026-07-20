@@ -124,29 +124,8 @@ class UserController extends Controller
             $user->week_start = $request->getWeekStart();
         }
 
-        if ($request->getCalendarEnabled() !== null) {
-            $user->calendar_enabled = $request->getCalendarEnabled();
-        }
-        if ($request->getTimesheetEnabled() !== null) {
-            $user->timesheet_enabled = $request->getTimesheetEnabled();
-        }
-        if ($request->getTagsEnabled() !== null) {
-            $user->tags_enabled = $request->getTagsEnabled();
-        }
-        if ($request->getDashboardBillableWidgetsEnabled() !== null) {
-            $user->dashboard_billable_widgets_enabled = $request->getDashboardBillableWidgetsEnabled();
-        }
-        if ($request->getTimeEnabled() !== null) {
-            $user->time_enabled = $request->getTimeEnabled();
-        }
-        if ($request->getClientsEnabled() !== null) {
-            $user->clients_enabled = $request->getClientsEnabled();
-        }
-        if ($request->getImportEnabled() !== null) {
-            $user->import_enabled = $request->getImportEnabled();
-        }
-        if ($request->getReportingSharedEnabled() !== null) {
-            $user->reporting_shared_enabled = $request->getReportingSharedEnabled();
+        if ($request->getHiddenNavItems() !== null) {
+            $user->hidden_nav_items = $request->getHiddenNavItems();
         }
 
         $user->save();

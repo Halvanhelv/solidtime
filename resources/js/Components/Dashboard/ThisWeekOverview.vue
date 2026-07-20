@@ -24,7 +24,7 @@ import { getOrganizationCurrencyString } from '@/utils/money';
 import { useQuery } from '@tanstack/vue-query';
 import { getCurrentOrganizationId } from '@/utils/useUser';
 import { api, type Organization } from '@/packages/api/src';
-import { usePage } from '@inertiajs/vue3';
+import { useNavVisibility } from '@/utils/navVisibility';
 
 use([CanvasRenderer, BarChart, TitleComponent, GridComponent, TooltipComponent, LegendComponent]);
 
@@ -60,10 +60,8 @@ const accentColor = useCssVariable('--theme-color-chart');
 // Get the organization ID using the utility function
 const organizationId = computed(() => getCurrentOrganizationId());
 
-const page = usePage<{ auth: { user: { dashboard_billable_widgets_enabled: boolean } } }>();
-const billableWidgetsEnabled = computed(
-    () => page.props.auth.user.dashboard_billable_widgets_enabled
-);
+const { isVisible } = useNavVisibility();
+const billableWidgetsEnabled = computed(() => isVisible('dashboard_billable_widgets'));
 
 const organization = inject<ComputedRef<Organization>>('organization');
 

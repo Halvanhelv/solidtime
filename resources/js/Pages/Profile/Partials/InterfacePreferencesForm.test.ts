@@ -12,10 +12,7 @@ vi.mock('@/utils/useUserQuery', () => ({
                 email: 'a@b.c',
                 timezone: 'UTC',
                 week_start: 'monday',
-                calendar_enabled: true,
-                timesheet_enabled: false,
-                tags_enabled: true,
-                dashboard_billable_widgets_enabled: true,
+                hidden_nav_items: ['timesheet'],
             },
         },
     }),
@@ -23,17 +20,20 @@ vi.mock('@/utils/useUserQuery', () => ({
 }));
 
 describe('InterfacePreferencesForm', () => {
-    it('seeds checkboxes from the user and submits changed flags', async () => {
+    it('seeds checkboxes from hidden_nav_items and submits the hidden set', async () => {
         const wrapper = mount(InterfacePreferencesForm);
-        // Timesheet starts disabled for this user
-        const timesheet = wrapper.get('[data-testid="pref-timesheet_enabled"]');
+        // Timesheet is hidden for this user → its "visible" checkbox is unchecked.
+        const timesheet = wrapper.get('[data-testid="pref-timesheet"]');
         expect((timesheet.element as HTMLInputElement).checked).toBe(false);
+        // Calendar is not hidden → checked.
+        const calendar = wrapper.get('[data-testid="pref-calendar"]');
+        expect((calendar.element as HTMLInputElement).checked).toBe(true);
 
         await wrapper.get('[data-testid="pref-save"]').trigger('click');
         expect(mutateAsync).toHaveBeenCalledWith(
             expect.objectContaining({
                 userId: 'u1',
-                body: expect.objectContaining({ timesheet_enabled: false }),
+                body: { hidden_nav_items: ['timesheet'] },
             })
         );
     });

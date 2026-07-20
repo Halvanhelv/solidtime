@@ -34,6 +34,7 @@ import { useClientsStore } from '@/utils/useClients';
 import { getOrganizationCurrencyString } from '@/utils/money';
 import { isAllowedToPerformPremiumAction } from '@/utils/billing';
 import { canCreateProjects } from '@/utils/permissions';
+import { useNavVisibility } from '@/utils/navVisibility';
 import { ref } from 'vue';
 import { useNotificationsStore } from '@/utils/notification';
 import { useTimeEntriesMutations } from '@/utils/useTimeEntriesMutations';
@@ -44,6 +45,7 @@ const page = usePage<{
         user: User;
     };
 }>();
+const { isVisible } = useNavVisibility();
 dayjs.extend(duration);
 
 dayjs.extend(utc);
@@ -156,7 +158,7 @@ const { tags } = useTagsQuery();
         :currency="getOrganizationCurrencyString()"
         :can-create-project="canCreateProjects()"
         :organization-billable-rate="organization?.billable_rate ?? null"
-        :tags-enabled="page.props.auth.user.tags_enabled"
+        :tags-enabled="isVisible('tags')"
         :projects
         :tasks
         :tags
@@ -188,7 +190,7 @@ const { tags } = useTagsQuery();
                         :create-tag
                         :is-active
                         :currency="getOrganizationCurrencyString()"
-                        :tags-enabled="page.props.auth.user.tags_enabled"
+                        :tags-enabled="isVisible('tags')"
                         @start-live-timer="startLiveTimer"
                         @stop-live-timer="stopLiveTimer"
                         @start-timer="setActiveState(true)"

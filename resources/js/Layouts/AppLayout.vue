@@ -37,6 +37,7 @@ import {
     canViewReport,
     canViewTags,
 } from '@/utils/permissions';
+import { useNavVisibility } from '@/utils/navVisibility';
 import { isBillingActivated, isInvoicingActivated } from '@/utils/billing';
 import type { User } from '@/types/models';
 import { ArrowsRightLeftIcon } from '@heroicons/vue/16/solid';
@@ -117,6 +118,8 @@ const page = usePage<{
         user: User;
     };
 }>();
+
+const { isVisible } = useNavVisibility();
 </script>
 
 <template>
@@ -177,19 +180,19 @@ const page = usePage<{
                                 :href="route('dashboard')"
                                 :current="route().current('dashboard')"></NavigationSidebarItem>
                             <NavigationSidebarItem
-                                v-if="page.props.auth.user.time_enabled"
+                                v-if="isVisible('time')"
                                 title="Time"
                                 :icon="ClockIcon"
                                 :current="route().current('time')"
                                 :href="route('time')"></NavigationSidebarItem>
                             <NavigationSidebarItem
-                                v-if="page.props.auth.user.calendar_enabled"
+                                v-if="isVisible('calendar')"
                                 title="Calendar"
                                 :icon="CalendarIcon"
                                 :current="route().current('calendar')"
                                 :href="route('calendar')"></NavigationSidebarItem>
                             <NavigationSidebarItem
-                                v-if="page.props.auth.user.timesheet_enabled"
+                                v-if="isVisible('timesheet')"
                                 title="Timesheet"
                                 :icon="TableCellsIcon"
                                 :current="route().current('timesheet')"
@@ -211,7 +214,7 @@ const page = usePage<{
                                     {
                                         title: 'Shared',
                                         route: 'reporting.shared',
-                                        show: canViewReport() && page.props.auth.user.reporting_shared_enabled,
+                                        show: canViewReport() && isVisible('reporting_shared'),
                                     },
                                 ]"
                                 :current="
@@ -235,7 +238,7 @@ const page = usePage<{
                                 :href="route('projects')"
                                 :current="route().current('projects')"></NavigationSidebarItem>
                             <NavigationSidebarItem
-                                v-if="canViewClients() && page.props.auth.user.clients_enabled"
+                                v-if="canViewClients() && isVisible('clients')"
                                 title="Clients"
                                 :icon="UserCircleIcon"
                                 :current="route().current('clients')"
@@ -247,7 +250,7 @@ const page = usePage<{
                                 :current="route().current('members')"
                                 :href="route('members')"></NavigationSidebarItem>
                             <NavigationSidebarItem
-                                v-if="canViewTags() && page.props.auth.user.tags_enabled"
+                                v-if="canViewTags() && isVisible('tags')"
                                 title="Tags"
                                 :icon="TagIcon"
                                 :current="route().current('tags')"
@@ -274,7 +277,7 @@ const page = usePage<{
                                 :icon="CreditCardIcon"
                                 href="/billing"></NavigationSidebarItem>
                             <NavigationSidebarItem
-                                v-if="canUpdateOrganization() && page.props.auth.user.import_enabled"
+                                v-if="canUpdateOrganization() && isVisible('import')"
                                 title="Import / Export"
                                 :icon="ArrowsRightLeftIcon"
                                 :current="route().current('import')"

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, type Component } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { useNavVisibility } from '@/utils/navVisibility';
 import { getCurrentRole, getCurrentUser } from '@/utils/useUser';
 import { useProjectsQuery } from '@/utils/useProjectsQuery';
 import { useMembersQuery } from '@/utils/useMembersQuery';
@@ -116,11 +116,11 @@ export const useReportingStore = defineStore('reporting', () => {
         },
     ];
 
-    const page = usePage<{ auth: { user?: { tags_enabled?: boolean } } }>();
+    const { isVisible } = useNavVisibility();
     const visibleGroupByOptions = computed(() =>
-        // Default to showing tags when the flag is absent (e.g. public shared
-        // reports, where auth.user is not populated) — only hide on explicit false.
-        page.props.auth.user?.tags_enabled !== false
+        // isVisible is undefined-safe: on public shared reports auth.user is not
+        // populated, so nothing is hidden and the Tag option stays.
+        isVisible('tags')
             ? groupByOptions
             : groupByOptions.filter((option) => option.value !== 'tag')
     );

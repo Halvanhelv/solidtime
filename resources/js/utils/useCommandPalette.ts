@@ -19,6 +19,7 @@ import {
     canCreateTags,
     canCreateInvitations,
 } from '@/utils/permissions';
+import { useNavVisibility } from '@/utils/navVisibility';
 import { isBillingActivated, isInvoicingActivated } from '@/utils/billing';
 import { useTimeEntriesInfiniteQuery } from '@/utils/useTimeEntriesInfiniteQuery';
 import { useProjectsQuery } from '@/utils/useProjectsQuery';
@@ -124,11 +125,12 @@ export function useCommandPalette() {
     const getCurrentTeamId = () => page.props.auth.user.current_team?.id ?? '';
     const allOrganizations = computed(() => page.props.auth.user.all_teams || []);
     const currentOrgId = computed(() => page.props.auth.user.current_team_id || '');
-    const calendarEnabled = computed(() => page.props.auth.user.calendar_enabled);
-    const tagsEnabled = computed(() => page.props.auth.user.tags_enabled);
-    const timeEnabled = computed(() => page.props.auth.user.time_enabled);
-    const clientsEnabled = computed(() => page.props.auth.user.clients_enabled);
-    const importEnabled = computed(() => page.props.auth.user.import_enabled);
+    const { isVisible } = useNavVisibility();
+    const calendarEnabled = computed(() => isVisible('calendar'));
+    const tagsEnabled = computed(() => isVisible('tags'));
+    const timeEnabled = computed(() => isVisible('time'));
+    const clientsEnabled = computed(() => isVisible('clients'));
+    const importEnabled = computed(() => isVisible('import'));
 
     const lastTimeEntry = computed(() => {
         const pages = timeEntriesQuery.data.value?.pages;

@@ -7,34 +7,56 @@ import { Checkbox } from '@/packages/ui/src';
 import PrimaryButton from '@/packages/ui/src/Buttons/PrimaryButton.vue';
 import ActionMessage from '@/Components/ActionMessage.vue';
 import { useUserQuery, useUpdateUserMutation } from '@/utils/useUserQuery';
+import { HIDEABLE_NAV_ITEMS, type HideableNavItem } from '@/utils/navVisibility';
 
 const { user } = useUserQuery();
 const updateUser = useUpdateUserMutation();
 
-const prefs = reactive({
-    calendar_enabled: true,
-    timesheet_enabled: true,
-    tags_enabled: true,
-    dashboard_billable_widgets_enabled: true,
-    time_enabled: true,
-    clients_enabled: true,
-    import_enabled: true,
-    reporting_shared_enabled: true,
-});
+const rows: { key: HideableNavItem; label: string; description: string }[] = [
+    { key: 'time', label: 'Time', description: 'Show the Time tracker in the sidebar.' },
+    { key: 'calendar', label: 'Calendar', description: 'Show Calendar in the sidebar.' },
+    { key: 'timesheet', label: 'Timesheet', description: 'Show Timesheet in the sidebar.' },
+    { key: 'clients', label: 'Clients', description: 'Show Clients in the sidebar.' },
+    {
+        key: 'import',
+        label: 'Import / Export',
+        description: 'Show Import / Export in the sidebar.',
+    },
+    {
+        key: 'tags',
+        label: 'Tags',
+        description: 'Show the Tags section, tag pickers, and tag reporting.',
+    },
+    {
+        key: 'reporting_shared',
+        label: 'Shared reports',
+        description: 'Show the Shared tab in Reporting.',
+    },
+    {
+        key: 'dashboard_billable_widgets',
+        label: 'Billable widgets',
+        description: 'Show Billable Time / Billable Amount on the dashboard.',
+    },
+];
+
+// Checkbox state = "visible" (checked = shown). We persist the inverse: the set
+// of hidden keys. Default every item visible until the user's prefs load.
+const visible = reactive<Record<HideableNavItem, boolean>>(
+    Object.fromEntries(HIDEABLE_NAV_ITEMS.map((key) => [key, true])) as Record<
+        HideableNavItem,
+        boolean
+    >
+);
 
 let seeded = false;
 watch(
     () => user.value,
     (u) => {
         if (u && !seeded) {
-            prefs.calendar_enabled = u.calendar_enabled;
-            prefs.timesheet_enabled = u.timesheet_enabled;
-            prefs.tags_enabled = u.tags_enabled;
-            prefs.dashboard_billable_widgets_enabled = u.dashboard_billable_widgets_enabled;
-            prefs.time_enabled = u.time_enabled;
-            prefs.clients_enabled = u.clients_enabled;
-            prefs.import_enabled = u.import_enabled;
-            prefs.reporting_shared_enabled = u.reporting_shared_enabled;
+            const hidden = u.hidden_nav_items ?? [];
+            for (const key of HIDEABLE_NAV_ITEMS) {
+                visible[key] = !hidden.includes(key);
+            }
             seeded = true;
         }
     },
@@ -45,8 +67,9 @@ const recentlySaved = ref(false);
 
 async function save() {
     if (!user.value) return;
+    const hidden_nav_items = HIDEABLE_NAV_ITEMS.filter((key) => !visible[key]);
     try {
-        await updateUser.mutateAsync({ userId: user.value.id, body: { ...prefs } });
+        await updateUser.mutateAsync({ userId: user.value.id, body: { hidden_nav_items } });
         // Refresh Inertia auth.user so the sidebar reflects the change immediately.
         router.reload({ only: ['auth'] });
         recentlySaved.value = true;
@@ -55,37 +78,6 @@ async function save() {
         // toast handled by the mutation
     }
 }
-
-const rows: { key: keyof typeof prefs; label: string; description: string }[] = [
-    { key: 'calendar_enabled', label: 'Calendar', description: 'Show Calendar in the sidebar.' },
-    {
-        key: 'timesheet_enabled',
-        label: 'Timesheet',
-        description: 'Show Timesheet in the sidebar.',
-    },
-    {
-        key: 'tags_enabled',
-        label: 'Tags',
-        description: 'Show the Tags section, tag pickers, and tag reporting.',
-    },
-    {
-        key: 'dashboard_billable_widgets_enabled',
-        label: 'Billable widgets',
-        description: 'Show Billable Time / Billable Amount on the dashboard.',
-    },
-    { key: 'time_enabled', label: 'Time', description: 'Show the Time tracker in the sidebar.' },
-    { key: 'clients_enabled', label: 'Clients', description: 'Show Clients in the sidebar.' },
-    {
-        key: 'import_enabled',
-        label: 'Import / Export',
-        description: 'Show Import / Export in the sidebar.',
-    },
-    {
-        key: 'reporting_shared_enabled',
-        label: 'Shared reports',
-        description: 'Show the Shared tab in Reporting.',
-    },
-];
 </script>
 
 <template>
@@ -102,7 +94,7 @@ const rows: { key: keyof typeof prefs; label: string; description: string }[] = 
                 orientation="horizontal">
                 <Checkbox
                     :id="`pref-${row.key}`"
-                    v-model:checked="prefs[row.key]"
+                    v-model:checked="visible[row.key]"
                     :data-testid="`pref-${row.key}`" />
                 <div>
                     <FieldLabel :for="`pref-${row.key}`">{{ row.label }}</FieldLabel>

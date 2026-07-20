@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { router, usePage } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
+import { useNavVisibility } from '@/utils/navVisibility';
 import { canViewReport } from '@/utils/permissions';
 import { computed } from 'vue';
 import { TabBar, TabBarItem } from '@/packages/ui/src';
@@ -8,9 +9,9 @@ const props = defineProps<{
     active: 'reporting' | 'detailed' | 'shared';
 }>();
 
-const page = usePage<{ auth: { user: { reporting_shared_enabled: boolean } } }>();
+const { isVisible } = useNavVisibility();
 const showSharedReports = computed(
-    () => canViewReport() && page.props.auth.user.reporting_shared_enabled
+    () => canViewReport() && isVisible('reporting_shared')
 );
 
 const tabs = computed(() => {

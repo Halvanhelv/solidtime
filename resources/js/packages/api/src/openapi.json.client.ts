@@ -696,14 +696,7 @@ const UserResource = z
         profile_photo_url: z.string(),
         timezone: z.string(),
         week_start: Weekday,
-        calendar_enabled: z.boolean(),
-        timesheet_enabled: z.boolean(),
-        tags_enabled: z.boolean(),
-        dashboard_billable_widgets_enabled: z.boolean(),
-        time_enabled: z.boolean(),
-        clients_enabled: z.boolean(),
-        import_enabled: z.boolean(),
-        reporting_shared_enabled: z.boolean(),
+        hidden_nav_items: z.array(z.string()),
     })
     .passthrough();
 const UserUpdateRequest = z
@@ -713,14 +706,7 @@ const UserUpdateRequest = z
         photo: z.union([z.string(), z.null()]),
         timezone: z.string(),
         week_start: Weekday,
-        calendar_enabled: z.boolean(),
-        timesheet_enabled: z.boolean(),
-        tags_enabled: z.boolean(),
-        dashboard_billable_widgets_enabled: z.boolean(),
-        time_enabled: z.boolean(),
-        clients_enabled: z.boolean(),
-        import_enabled: z.boolean(),
-        reporting_shared_enabled: z.boolean(),
+        hidden_nav_items: z.array(z.string()),
     })
     .partial()
     .passthrough();

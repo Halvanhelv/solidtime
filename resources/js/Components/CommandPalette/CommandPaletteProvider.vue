@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, computed } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
+import { useNavVisibility } from '@/utils/navVisibility';
 import { CommandPalette } from '@/packages/ui/src/CommandPalette';
 import { useCommandPalette } from '@/utils/useCommandPalette';
 import { useProjectsStore } from '@/utils/useProjects';
@@ -79,6 +80,7 @@ const page = usePage<{
         user: User;
     };
 }>();
+const { isVisible } = useNavVisibility();
 
 const availableRoles = computed(() => page.props.availableRoles ?? []);
 
@@ -194,7 +196,7 @@ const firstProjectId = computed(() => projects.value[0]?.id ?? '');
         :projects="projects"
         :tasks="tasks"
         :tags="tags"
-        :tags-enabled="page.props.auth.user.tags_enabled"
+        :tags-enabled="isVisible('tags')"
         :clients="activeClients"
         :currency="getOrganizationCurrencyString()"
         :enable-estimated-time="isAllowedToPerformPremiumAction()"

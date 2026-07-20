@@ -36,22 +36,8 @@ class UserResource extends BaseResource
             'timezone' => $this->resource->timezone,
             /** @var Weekday $week_start Starting day of the week */
             'week_start' => $this->resource->week_start->value,
-            /** @var bool $calendar_enabled Whether Calendar is visible in this user's sidebar */
-            'calendar_enabled' => $this->resource->calendar_enabled,
-            /** @var bool $timesheet_enabled Whether Timesheet is visible in this user's sidebar */
-            'timesheet_enabled' => $this->resource->timesheet_enabled,
-            /** @var bool $tags_enabled Whether Tags (section, pickers, report grouping) are visible for this user */
-            'tags_enabled' => $this->resource->tags_enabled,
-            /** @var bool $dashboard_billable_widgets_enabled Whether the Dashboard billable widgets are visible for this user */
-            'dashboard_billable_widgets_enabled' => $this->resource->dashboard_billable_widgets_enabled,
-            /** @var bool $time_enabled Whether the Time tracker is visible in this user's sidebar */
-            'time_enabled' => $this->resource->time_enabled,
-            /** @var bool $clients_enabled Whether Clients are visible in this user's sidebar */
-            'clients_enabled' => $this->resource->clients_enabled,
-            /** @var bool $import_enabled Whether Import is visible in this user's sidebar */
-            'import_enabled' => $this->resource->import_enabled,
-            /** @var bool $reporting_shared_enabled Whether Shared reports are visible for this user */
-            'reporting_shared_enabled' => $this->resource->reporting_shared_enabled,
+            /** @var array<int, string> $hidden_nav_items Keys of nav/UI surfaces this user has hidden (empty = all visible) */
+            'hidden_nav_items' => $this->resource->hidden_nav_items,
         ];
     }
 }

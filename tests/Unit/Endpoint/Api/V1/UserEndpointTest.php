@@ -732,7 +732,7 @@ class UserEndpointTest extends ApiEndpointTestAbstract
         $this->assertDatabaseMissing(User::class, ['id' => $data->user->getKey()]);
     }
 
-    public function test_update_endpoint_persists_feature_visibility_flags(): void
+    public function test_update_endpoint_persists_hidden_nav_items(): void
     {
         // Arrange
         $data = $this->createUserWithPermission();
@@ -740,64 +740,46 @@ class UserEndpointTest extends ApiEndpointTestAbstract
 
         // Act
         $response = $this->putJson(route('api.v1.users.update', $data->user->getKey()), [
-            'calendar_enabled' => false,
-            'timesheet_enabled' => false,
-            'tags_enabled' => false,
-            'dashboard_billable_widgets_enabled' => false,
-            'time_enabled' => false,
-            'clients_enabled' => false,
-            'import_enabled' => false,
-            'reporting_shared_enabled' => false,
+            'hidden_nav_items' => ['calendar', 'tags', 'import'],
         ]);
 
         // Assert
         $response->assertSuccessful();
-        $response->assertJsonPath('data.calendar_enabled', false);
-        $response->assertJsonPath('data.timesheet_enabled', false);
-        $response->assertJsonPath('data.tags_enabled', false);
-        $response->assertJsonPath('data.dashboard_billable_widgets_enabled', false);
-        $response->assertJsonPath('data.time_enabled', false);
-        $response->assertJsonPath('data.clients_enabled', false);
-        $response->assertJsonPath('data.import_enabled', false);
-        $response->assertJsonPath('data.reporting_shared_enabled', false);
+        $response->assertJsonPath('data.hidden_nav_items', ['calendar', 'tags', 'import']);
 
         $user = $data->user->fresh();
-        $this->assertFalse($user->calendar_enabled);
-        $this->assertFalse($user->timesheet_enabled);
-        $this->assertFalse($user->tags_enabled);
-        $this->assertFalse($user->dashboard_billable_widgets_enabled);
-        $this->assertFalse($user->time_enabled);
-        $this->assertFalse($user->clients_enabled);
-        $this->assertFalse($user->import_enabled);
-        $this->assertFalse($user->reporting_shared_enabled);
+        $this->assertSame(['calendar', 'tags', 'import'], $user->hidden_nav_items);
     }
 
-    public function test_feature_visibility_flags_default_true_and_survive_partial_update(): void
+    public function test_update_endpoint_rejects_unknown_hidden_nav_item(): void
+    {
+        $data = $this->createUserWithPermission();
+        Passport::actingAs($data->user);
+
+        $response = $this->putJson(route('api.v1.users.update', $data->user->getKey()), [
+            'hidden_nav_items' => ['not_a_real_item'],
+        ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_hidden_nav_items_default_empty_and_survive_partial_update(): void
     {
         // Arrange
         $data = $this->createUserWithPermission();
-        $this->assertTrue($data->user->calendar_enabled);
-        $this->assertTrue($data->user->timesheet_enabled);
-        $this->assertTrue($data->user->tags_enabled);
-        $this->assertTrue($data->user->dashboard_billable_widgets_enabled);
-        $this->assertTrue($data->user->time_enabled);
-        $this->assertTrue($data->user->clients_enabled);
-        $this->assertTrue($data->user->import_enabled);
-        $this->assertTrue($data->user->reporting_shared_enabled);
+        $this->assertSame([], $data->user->hidden_nav_items);
+        $data->user->hidden_nav_items = ['tags'];
+        $data->user->save();
         Passport::actingAs($data->user);
 
         // Act
-        // Partial update that omits the flags must leave them unchanged.
+        // Partial update that omits hidden_nav_items must leave it unchanged.
         $response = $this->putJson(route('api.v1.users.update', $data->user->getKey()), [
             'name' => 'Renamed',
         ]);
 
         // Assert
         $response->assertSuccessful();
-        $user = $data->user->fresh();
-        $this->assertTrue($user->calendar_enabled);
-        $this->assertTrue($user->timesheet_enabled);
-        $this->assertTrue($user->tags_enabled);
-        $this->assertTrue($user->dashboard_billable_widgets_enabled);
+        $this->assertSame(['tags'], $data->user->fresh()->hidden_nav_items);
     }
 }

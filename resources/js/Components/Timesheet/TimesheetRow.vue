@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, type ComputedRef } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { useNavVisibility } from '@/utils/navVisibility';
 import { XMarkIcon } from '@heroicons/vue/16/solid';
 import TimesheetCell from './TimesheetCell.vue';
 import TimeTrackerProjectTaskDropdown from '@/packages/ui/src/TimeTracker/TimeTrackerProjectTaskDropdown.vue';
@@ -24,7 +24,7 @@ import { Button } from '@/packages/ui/src/Buttons';
 
 const organization = inject<ComputedRef<Organization>>('organization');
 
-const page = usePage<{ auth: { user: { tags_enabled: boolean } } }>();
+const { isVisible } = useNavVisibility();
 
 const props = defineProps<{
     row: TimesheetRow;
@@ -97,7 +97,7 @@ function hasRunningEntry(dayIndex: number): boolean {
             </div>
             <div class="flex items-center gap-1 flex-shrink-0 ml-auto">
                 <TimeEntryRowTagDropdown
-                    v-if="page.props.auth.user.tags_enabled"
+                    v-if="isVisible('tags')"
                     :create-tag="createTag"
                     :tags="tags"
                     :model-value="row.tags"
