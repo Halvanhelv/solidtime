@@ -116,9 +116,11 @@ export const useReportingStore = defineStore('reporting', () => {
         },
     ];
 
-    const page = usePage<{ auth: { user: { tags_enabled: boolean } } }>();
+    const page = usePage<{ auth: { user?: { tags_enabled?: boolean } } }>();
     const visibleGroupByOptions = computed(() =>
-        page.props.auth.user.tags_enabled
+        // Default to showing tags when the flag is absent (e.g. public shared
+        // reports, where auth.user is not populated) — only hide on explicit false.
+        page.props.auth.user?.tags_enabled !== false
             ? groupByOptions
             : groupByOptions.filter((option) => option.value !== 'tag')
     );

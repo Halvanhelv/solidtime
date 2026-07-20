@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { usePage } from '@inertiajs/vue3';
 import { useTimeEntriesCalendarQuery } from '@/utils/useTimeEntriesCalendarQuery';
 import { useTimeEntriesMutations } from '@/utils/useTimeEntriesMutations';
 import { computed, ref, onMounted } from 'vue';
@@ -28,6 +29,7 @@ import { useOrganizationQuery } from '@/utils/useOrganizationQuery';
 import { getCurrentOrganizationId } from '@/utils/useUser';
 
 const { organization } = useOrganizationQuery(getCurrentOrganizationId()!);
+const page = usePage<{ auth: { user: { tags_enabled: boolean } } }>();
 const calendarStart = ref<Dayjs | undefined>(undefined);
 const calendarEnd = ref<Dayjs | undefined>(undefined);
 
@@ -129,6 +131,7 @@ function onRefresh() {
             :currency="getOrganizationCurrencyString()"
             :can-create-project="canCreateProjects()"
             :organization-billable-rate="organization?.billable_rate ?? null"
+            :tags-enabled="page.props.auth.user.tags_enabled"
             :create-time-entry="createTimeEntry"
             :update-time-entry="updateTimeEntry"
             :delete-time-entry="deleteTimeEntry"

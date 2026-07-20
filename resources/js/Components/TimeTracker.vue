@@ -188,6 +188,7 @@ const { tags } = useTagsQuery();
                         :create-tag
                         :is-active
                         :currency="getOrganizationCurrencyString()"
+                        :tags-enabled="page.props.auth.user.tags_enabled"
                         @start-live-timer="startLiveTimer"
                         @stop-live-timer="stopLiveTimer"
                         @start-timer="setActiveState(true)"

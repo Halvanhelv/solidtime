@@ -74,6 +74,7 @@ const props = defineProps<{
     currency: string;
     canCreateProject: boolean;
     organizationBillableRate: number | null;
+    tagsEnabled?: boolean;
 
     createTimeEntry: (
         entry: Omit<TimeEntry, 'id' | 'organization_id' | 'user_id'>
@@ -448,6 +449,7 @@ function getEventDurationSeconds(dayEvent: DayEvent, dayStr: string): number {
             :currency="currency"
             :can-create-project="canCreateProject"
             :organization-billable-rate="organizationBillableRate"
+            :tags-enabled="tagsEnabled"
             :tags="tags as any"
             :projects="projects"
             :tasks="tasks"
@@ -464,6 +466,7 @@ function getEventDurationSeconds(dayEvent: DayEvent, dayStr: string): number {
             :create-client="createClient"
             :create-project="createProject"
             :create-tag="createTag"
+            :tags-enabled="tagsEnabled"
             :tags="tags as any"
             :projects="projects"
             :tasks="tasks"

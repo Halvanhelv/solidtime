@@ -41,6 +41,7 @@ const props = defineProps<{
     organizationBillableRate: number | null;
     enableEstimatedTime: boolean;
     canCreateProject: boolean;
+    tagsEnabled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -271,6 +272,7 @@ useSelectEvents(
                 </div>
                 <div class="flex items-center space-x-0 @4xl:space-x-2 px-2 @4xl:px-4 shrink-0">
                     <TimeTrackerTagDropdown
+                        v-if="tagsEnabled !== false"
                         v-model="currentTimeEntry.tags"
                         :create-tag
                         :tags="tags"
