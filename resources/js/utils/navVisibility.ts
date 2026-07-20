@@ -8,6 +8,8 @@ import { computed } from 'vue';
  * migration or backend change needed.
  */
 export const HIDEABLE_NAV_ITEMS = [
+    'projects',
+    'members',
     'calendar',
     'timesheet',
     'tags',

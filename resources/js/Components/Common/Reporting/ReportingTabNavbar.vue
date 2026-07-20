@@ -10,9 +10,7 @@ const props = defineProps<{
 }>();
 
 const { isVisible } = useNavVisibility();
-const showSharedReports = computed(
-    () => canViewReport() && isVisible('reporting_shared')
-);
+const showSharedReports = computed(() => canViewReport() && isVisible('reporting_shared'));
 
 const tabs = computed(() => {
     const items = [

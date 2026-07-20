@@ -14,6 +14,8 @@ const updateUser = useUpdateUserMutation();
 
 const rows: { key: HideableNavItem; label: string; description: string }[] = [
     { key: 'time', label: 'Time', description: 'Show the Time tracker in the sidebar.' },
+    { key: 'projects', label: 'Projects', description: 'Show Projects in the sidebar.' },
+    { key: 'members', label: 'Members', description: 'Show Members in the sidebar.' },
     { key: 'calendar', label: 'Calendar', description: 'Show Calendar in the sidebar.' },
     { key: 'timesheet', label: 'Timesheet', description: 'Show Timesheet in the sidebar.' },
     { key: 'clients', label: 'Clients', description: 'Show Clients in the sidebar.' },

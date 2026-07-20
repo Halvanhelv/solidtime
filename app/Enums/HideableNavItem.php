@@ -15,6 +15,8 @@ enum HideableNavItem: string
 {
     use LaravelEnumHelper;
 
+    case Projects = 'projects';
+    case Members = 'members';
     case Calendar = 'calendar';
     case Timesheet = 'timesheet';
     case Tags = 'tags';

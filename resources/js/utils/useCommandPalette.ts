@@ -131,6 +131,8 @@ export function useCommandPalette() {
     const timeEnabled = computed(() => isVisible('time'));
     const clientsEnabled = computed(() => isVisible('clients'));
     const importEnabled = computed(() => isVisible('import'));
+    const projectsEnabled = computed(() => isVisible('projects'));
+    const membersEnabled = computed(() => isVisible('members'));
 
     const lastTimeEntry = computed(() => {
         const pages = timeEntriesQuery.data.value?.pages;
@@ -273,6 +275,8 @@ export function useCommandPalette() {
                 timeEnabled: timeEnabled.value,
                 clientsEnabled: clientsEnabled.value,
                 importEnabled: importEnabled.value,
+                projectsEnabled: projectsEnabled.value,
+                membersEnabled: membersEnabled.value,
             },
             {
                 isInvoicingActivated,

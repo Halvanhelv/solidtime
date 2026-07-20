@@ -74,6 +74,8 @@ export function createNavigationCommands(
         timeEnabled: boolean;
         clientsEnabled: boolean;
         importEnabled: boolean;
+        projectsEnabled: boolean;
+        membersEnabled: boolean;
     },
     features: {
         isInvoicingActivated: () => boolean;
@@ -146,7 +148,7 @@ export function createNavigationCommands(
             keywords: ['projects', 'work'],
             group: 'navigation',
             action: () => navigate('projects'),
-            permission: permissions.canViewProjects,
+            permission: () => permissions.canViewProjects() && permissions.projectsEnabled,
             priority: GROUP_PRIORITIES.navigation + 4,
         },
         {
@@ -166,7 +168,7 @@ export function createNavigationCommands(
             keywords: ['members', 'team', 'users', 'employees'],
             group: 'navigation',
             action: () => navigate('members'),
-            permission: permissions.canViewMembers,
+            permission: () => permissions.canViewMembers() && permissions.membersEnabled,
             priority: GROUP_PRIORITIES.navigation + 2,
         },
         {

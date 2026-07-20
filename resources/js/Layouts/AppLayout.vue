@@ -232,7 +232,7 @@ const { isVisible } = useNavVisibility();
                     <nav>
                         <ul>
                             <NavigationSidebarItem
-                                v-if="canViewProjects()"
+                                v-if="canViewProjects() && isVisible('projects')"
                                 title="Projects"
                                 :icon="FolderIcon"
                                 :href="route('projects')"
@@ -244,7 +244,7 @@ const { isVisible } = useNavVisibility();
                                 :current="route().current('clients')"
                                 :href="route('clients')"></NavigationSidebarItem>
                             <NavigationSidebarItem
-                                v-if="canViewMembers()"
+                                v-if="canViewMembers() && isVisible('members')"
                                 title="Members"
                                 :icon="UserGroupIcon"
                                 :current="route().current('members')"
