@@ -113,9 +113,9 @@ accessories:
     hosts: []
 
 aliases:
-  ssh: web exec --interactive --reuse "bash"
-  logs: web logs -f
-  console: web exec --interactive --reuse "php artisan tinker"
-  tinker: web exec --interactive --reuse "php artisan tinker"
+  ssh: app exec --interactive --reuse --primary "bash"
+  logs: app logs -f
+  console: app exec --interactive --reuse --primary "php artisan tinker"
+  tinker: app exec --interactive --reuse --primary "php artisan tinker"
   dbc: accessory exec database --interactive --reuse "psql -U solidtime -d solidtime"
-  migrate: web exec --reuse "php artisan migrate --force"
+  migrate: app exec --reuse --primary "php artisan migrate --force"
