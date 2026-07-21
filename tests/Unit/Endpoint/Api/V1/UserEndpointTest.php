@@ -164,6 +164,50 @@ class UserEndpointTest extends ApiEndpointTestAbstract
         $this->assertSame(Weekday::Sunday, $user->week_start);
     }
 
+    /**
+     * @return array<string, array{string, string}>
+     */
+    public static function legacyTimezoneProvider(): array
+    {
+        return [
+            'Europe/Kiev maps to Europe/Kyiv' => ['Europe/Kiev', 'Europe/Kyiv'],
+            'Europe/Uzhgorod maps to Europe/Kyiv' => ['Europe/Uzhgorod', 'Europe/Kyiv'],
+            'Europe/Zaporozhye maps to Europe/Kyiv' => ['Europe/Zaporozhye', 'Europe/Kyiv'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('legacyTimezoneProvider')]
+    public function test_update_normalizes_legacy_timezone_names(string $input, string $expected): void
+    {
+        // Arrange — a browser reporting a legacy IANA zone name (rejected by
+        // Laravel's `timezone:all`) must be normalized, not 422'd (fixes the
+        // timezone-mismatch modal getting stuck on Update for those users).
+        $data = $this->createUserWithPermission();
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->putJson(route('api.v1.users.update', $data->user->getKey()), [
+            'timezone' => $input,
+        ]);
+
+        // Assert
+        $response->assertSuccessful();
+        $response->assertJsonPath('data.timezone', $expected);
+        $this->assertSame($expected, $data->user->fresh()->timezone);
+    }
+
+    public function test_update_still_rejects_a_genuinely_invalid_timezone(): void
+    {
+        $data = $this->createUserWithPermission();
+        Passport::actingAs($data->user);
+
+        $response = $this->putJson(route('api.v1.users.update', $data->user->getKey()), [
+            'timezone' => 'Mars/Phobos',
+        ]);
+
+        $response->assertStatus(422);
+    }
+
     public function test_update_does_not_change_user_fields_that_are_not_given(): void
     {
         // Arrange
