@@ -746,4 +746,130 @@ class ReportEndpointTest extends ApiEndpointTestAbstract
         $response->assertStatus(422);
         $response->assertInvalid(['properties.tag_match_type']);
     }
+
+    public function test_store_endpoint_accepts_sub_sub_group_and_persists_it(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'reports:create',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->withoutExceptionHandling()->postJson(route('api.v1.reports.store', [$data->organization->getKey()]), [
+            'name' => 'Report with third grouping level',
+            'is_public' => false,
+            'properties' => [
+                'start' => Carbon::now()->subDays(30)->toIso8601ZuluString(),
+                'end' => Carbon::now()->toIso8601ZuluString(),
+                'group' => TimeEntryAggregationType::User->value,
+                'sub_group' => TimeEntryAggregationType::Project->value,
+                'sub_sub_group' => TimeEntryAggregationType::Description->value,
+                'history_group' => TimeEntryAggregationType::Day->value,
+            ],
+        ]);
+
+        // Assert
+        $response->assertStatus(201);
+        /** @var Report $report */
+        $report = Report::query()->findOrFail($response->json('data.id'));
+        $this->assertSame(TimeEntryAggregationType::Description, $report->properties->subSubGroup);
+        // Note: DetailedReportResource (the store response) does not currently expose
+        // sub_sub_group in properties (only DetailedWithDataReportResource, used by the
+        // public show endpoint, does), so we only assert the persisted value here.
+        $response->assertJson(fn (AssertableJson $json) => $json
+            ->has('data')
+            ->where('data.properties.group', TimeEntryAggregationType::User->value)
+            ->where('data.properties.sub_group', TimeEntryAggregationType::Project->value)
+            ->etc()
+        );
+    }
+
+    public function test_store_endpoint_rejects_sub_sub_group_duplicated_with_group(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'reports:create',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->postJson(route('api.v1.reports.store', [$data->organization->getKey()]), [
+            'name' => 'Report with duplicated grouping levels',
+            'is_public' => false,
+            'properties' => [
+                'start' => Carbon::now()->subDays(30)->toIso8601ZuluString(),
+                'end' => Carbon::now()->toIso8601ZuluString(),
+                'group' => TimeEntryAggregationType::Project->value,
+                'sub_group' => TimeEntryAggregationType::Task->value,
+                'sub_sub_group' => TimeEntryAggregationType::Project->value,
+                'history_group' => TimeEntryAggregationType::Day->value,
+            ],
+        ]);
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertInvalid(['properties.sub_sub_group']);
+    }
+
+    public function test_store_endpoint_rejects_sub_sub_group_duplicated_with_sub_group(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'reports:create',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->postJson(route('api.v1.reports.store', [$data->organization->getKey()]), [
+            'name' => 'Report with duplicated grouping levels',
+            'is_public' => false,
+            'properties' => [
+                'start' => Carbon::now()->subDays(30)->toIso8601ZuluString(),
+                'end' => Carbon::now()->toIso8601ZuluString(),
+                'group' => TimeEntryAggregationType::Project->value,
+                'sub_group' => TimeEntryAggregationType::Task->value,
+                'sub_sub_group' => TimeEntryAggregationType::Task->value,
+                'history_group' => TimeEntryAggregationType::Day->value,
+            ],
+        ]);
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertInvalid(['properties.sub_sub_group']);
+    }
+
+    public function test_store_endpoint_creates_report_without_sub_sub_group(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'reports:create',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->withoutExceptionHandling()->postJson(route('api.v1.reports.store', [$data->organization->getKey()]), [
+            'name' => 'Report without third grouping level',
+            'is_public' => false,
+            'properties' => [
+                'start' => Carbon::now()->subDays(30)->toIso8601ZuluString(),
+                'end' => Carbon::now()->toIso8601ZuluString(),
+                'group' => TimeEntryAggregationType::Project->value,
+                'sub_group' => TimeEntryAggregationType::Task->value,
+                'history_group' => TimeEntryAggregationType::Day->value,
+            ],
+        ]);
+
+        // Assert
+        $response->assertStatus(201);
+        /** @var Report $report */
+        $report = Report::query()->findOrFail($response->json('data.id'));
+        $this->assertNull($report->properties->subSubGroup);
+        $response->assertJson(fn (AssertableJson $json) => $json
+            ->has('data')
+            ->where('data.properties.group', TimeEntryAggregationType::Project->value)
+            ->where('data.properties.sub_group', TimeEntryAggregationType::Task->value)
+            ->etc()
+        );
+    }
 }

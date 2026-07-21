@@ -9,12 +9,14 @@ use App\Enums\TimeEntryAggregationType;
 use App\Enums\TimeEntryAggregationTypeInterval;
 use App\Enums\Weekday;
 use App\Models\Client;
+use App\Models\Member;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\Report;
 use App\Models\Tag;
 use App\Models\Task;
 use App\Models\TimeEntry;
+use App\Models\User;
 use App\Service\CurrencyService;
 use App\Service\Dto\ReportPropertiesDto;
 use App\Service\TimeEntryFilter;
@@ -132,6 +134,7 @@ class PublicReportEndpointTest extends ApiEndpointTestAbstract
             'properties' => [
                 'group' => $reportDto->group->value,
                 'sub_group' => $reportDto->subGroup->value,
+                'sub_sub_group' => null,
                 'history_group' => $reportDto->historyGroup->value,
                 'start' => $reportDto->start->toIso8601ZuluString(),
                 'end' => $reportDto->end->toIso8601ZuluString(),
@@ -667,6 +670,77 @@ class PublicReportEndpointTest extends ApiEndpointTestAbstract
                 'grouped_type' => TimeEntryAggregationType::Project->value,
             ],
         ]);
+    }
+
+    public function test_show_returns_three_level_grouped_data_when_sub_sub_group_is_set(): void
+    {
+        // Arrange
+        $timezone = 'Europe/Vienna';
+        $now = Carbon::now($timezone);
+        $organization = Organization::factory()->create();
+        $user = User::factory()->create();
+        $member = Member::factory()->forUser($user)->forOrganization($organization)->create();
+        $project = Project::factory()->forOrganization($organization)->create();
+
+        TimeEntry::factory()->forOrganization($organization)->forMember($member)->forProject($project)
+            ->startWithDuration($now->copy()->subDay(), 100)
+            ->create(['description' => 'Task A']);
+        TimeEntry::factory()->forOrganization($organization)->forMember($member)->forProject($project)
+            ->startWithDuration($now->copy()->subDay(), 200)
+            ->create(['description' => 'Task B']);
+
+        $reportDto = new ReportPropertiesDto;
+        $reportDto->start = $now->copy()->subDays(2);
+        $reportDto->end = $now->copy();
+        $reportDto->group = TimeEntryAggregationType::User;
+        $reportDto->subGroup = TimeEntryAggregationType::Project;
+        $reportDto->subSubGroup = TimeEntryAggregationType::Description;
+        $reportDto->historyGroup = TimeEntryAggregationTypeInterval::Day;
+        $reportDto->weekStart = Weekday::Monday;
+        $reportDto->timezone = $timezone;
+        $report = Report::factory()->forOrganization($organization)->public()->create([
+            'public_until' => null,
+            'properties' => $reportDto,
+        ]);
+
+        // Act
+        $response = $this->getJson(route('api.v1.public.reports.show'), [
+            'X-Api-Key' => $report->share_secret,
+        ]);
+
+        // Assert
+        $response->assertOk();
+        $response->assertJsonPath('properties.sub_sub_group', TimeEntryAggregationType::Description->value);
+        $response->assertJson([
+            'data' => [
+                'seconds' => 300,
+                'cost' => 0,
+                'grouped_type' => TimeEntryAggregationType::User->value,
+                'grouped_data' => [
+                    [
+                        'key' => $user->getKey(),
+                        'seconds' => 300,
+                        'grouped_type' => TimeEntryAggregationType::Project->value,
+                        'grouped_data' => [
+                            [
+                                'key' => $project->getKey(),
+                                'seconds' => 300,
+                                'grouped_type' => TimeEntryAggregationType::Description->value,
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+        // Third grouping level is present with the two distinct descriptions
+        $this->assertNotNull($response->json('data.grouped_data.0.grouped_data.0.grouped_data.0'));
+        $this->assertCount(2, $response->json('data.grouped_data.0.grouped_data.0.grouped_data'));
+        $descriptions = collect($response->json('data.grouped_data.0.grouped_data.0.grouped_data'))
+            ->pluck('key')
+            ->sort()
+            ->values()
+            ->toArray();
+        $this->assertSame(['Task A', 'Task B'], $descriptions);
     }
 
     public function test_show_applies_not_contains_tag_match_type(): void
