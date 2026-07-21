@@ -81,8 +81,31 @@ const roundingType = ref<TimeEntryRoundingType>('nearest');
 const roundingMinutes = ref<number>(15);
 
 const group = useStorage<GroupingOption>('reporting-group', 'project');
-const subGroup = useStorage<GroupingOption | null>('reporting-sub-group', 'task');
-const subSubGroup = useStorage<GroupingOption | null>('reporting-sub-sub-group', null);
+// vueuse's useStorage removes the key and reverts to its default when the ref is
+// set to null, which would make the "(None)" state impossible to keep for the
+// sub-group selects. Persist a sentinel string instead and expose a null-based
+// computed at the boundary so the rest of the component keeps using `null`.
+const SUB_GROUP_NONE = '__none__';
+const subGroupStorage = useStorage<GroupingOption | typeof SUB_GROUP_NONE>(
+    'reporting-sub-group',
+    'task'
+);
+const subSubGroupStorage = useStorage<GroupingOption | typeof SUB_GROUP_NONE>(
+    'reporting-sub-sub-group',
+    SUB_GROUP_NONE
+);
+const subGroup = computed<GroupingOption | null>({
+    get: () => (subGroupStorage.value === SUB_GROUP_NONE ? null : subGroupStorage.value),
+    set: (value) => {
+        subGroupStorage.value = value ?? SUB_GROUP_NONE;
+    },
+});
+const subSubGroup = computed<GroupingOption | null>({
+    get: () => (subSubGroupStorage.value === SUB_GROUP_NONE ? null : subSubGroupStorage.value),
+    set: (value) => {
+        subSubGroupStorage.value = value ?? SUB_GROUP_NONE;
+    },
+});
 
 const reportingStore = useReportingStore();
 const { groupByOptions, getNameForReportingRowEntry, emptyPlaceholder } = reportingStore;
