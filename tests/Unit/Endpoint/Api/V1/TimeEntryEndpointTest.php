@@ -1132,6 +1132,45 @@ class TimeEntryEndpointTest extends ApiEndpointTestAbstract
         $this->assertStringContainsString('Billable', $html);
     }
 
+    public function test_aggregate_export_endpoint_in_debug_mode_renders_third_grouping_level(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+        $this->actAsOrganizationWithSubscription();
+        Config::set('services.gotenberg.url', null);
+        $project = Project::factory()->forOrganization($data->organization)->create();
+        TimeEntry::factory()
+            ->forOrganization($data->organization)
+            ->forMember($data->member)
+            ->forProject($project)
+            ->billable()
+            ->startWithDuration(Carbon::now()->subHours(2), 3600)
+            ->create(['description' => 'Deep work session']);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate-export', [
+            $data->organization->getKey(),
+            'format' => ExportFormat::PDF,
+            'group' => TimeEntryAggregationType::User,
+            'sub_group' => TimeEntryAggregationType::Project,
+            'sub_sub_group' => TimeEntryAggregationType::Description,
+            'history_group' => TimeEntryAggregationTypeInterval::Month,
+            'start' => Carbon::now()->startOfYear()->toIso8601ZuluString(),
+            'end' => Carbon::now()->endOfYear()->toIso8601ZuluString(),
+            'debug' => 'true',
+        ]));
+
+        // Assert
+        $this->assertResponseCode($response, 200);
+        $html = $response->json('html');
+        $this->assertIsString($html);
+        $this->assertStringContainsString('Deep work session', $html);
+        $this->assertStringContainsString($project->name, $html);
+    }
+
     public function test_index_export_endpoint_fails_if_user_wants_a_pdf_export_but_has_no_subscription(): void
     {
         // Arrange
@@ -2012,6 +2051,94 @@ class TimeEntryEndpointTest extends ApiEndpointTestAbstract
         // Assert
         $response->assertStatus(422);
         $response->assertJsonValidationErrorFor('group');
+    }
+
+    public function test_aggregate_endpoint_rejects_sub_sub_group_of_tag(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate', [
+            $data->organization->getKey(),
+            'group' => TimeEntryAggregationType::User->value,
+            'sub_group' => TimeEntryAggregationType::Day->value,
+            'sub_sub_group' => TimeEntryAggregationType::Tag->value,
+        ]));
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrorFor('sub_sub_group');
+    }
+
+    public function test_aggregate_endpoint_rejects_sub_sub_group_without_sub_group(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate', [
+            $data->organization->getKey(),
+            'group' => TimeEntryAggregationType::User->value,
+            'sub_sub_group' => TimeEntryAggregationType::Description->value,
+        ]));
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrorFor('sub_sub_group');
+    }
+
+    public function test_aggregate_endpoint_rejects_sub_sub_group_when_group_is_tag(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate', [
+            $data->organization->getKey(),
+            'group' => TimeEntryAggregationType::Tag->value,
+            'sub_group' => TimeEntryAggregationType::User->value,
+            'sub_sub_group' => TimeEntryAggregationType::Day->value,
+        ]));
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrorFor('sub_sub_group');
+    }
+
+    public function test_aggregate_endpoint_returns_three_level_tree(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        $project = Project::factory()->forOrganization($data->organization)->create();
+        TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->forProject($project)->startWithDuration(Carbon::now(), 60)->create(['description' => 'A']);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate', [
+            $data->organization->getKey(),
+            'group' => 'user',
+            'sub_group' => 'project',
+            'sub_sub_group' => 'description',
+        ]));
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.grouped_type', 'user');
+        $response->assertJsonPath('data.grouped_data.0.grouped_type', 'project');
+        $response->assertJsonPath('data.grouped_data.0.grouped_data.0.grouped_type', 'description');
+        $response->assertJsonPath('data.grouped_data.0.grouped_data.0.grouped_data.0.key', 'A');
     }
 
     public function test_aggregate_endpoint_works_for_user_with_only_access_to_own_time_entries(): void

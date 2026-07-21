@@ -34,7 +34,7 @@ import UpgradeModal from '@/Components/Common/UpgradeModal.vue';
 import { canCreateReports } from '@/utils/permissions';
 import { isAllowedToPerformPremiumAction } from '@/utils/billing';
 import { computed, type ComputedRef, inject, ref, watch } from 'vue';
-import { type GroupingOption, useReportingStore } from '@/utils/useReporting';
+import { type GroupingOption, nextDistinctOption, useReportingStore } from '@/utils/useReporting';
 import {
     type AggregatedTimeEntries,
     type AggregatedTimeEntriesQueryParams,
@@ -77,6 +77,7 @@ const roundingMinutes = ref<number>(15);
 
 const group = useStorage<GroupingOption>('reporting-group', 'project');
 const subGroup = useStorage<GroupingOption>('reporting-sub-group', 'task');
+const subSubGroup = useStorage<GroupingOption | null>('reporting-sub-sub-group', null);
 
 const reportingStore = useReportingStore();
 const { groupByOptions, getNameForReportingRowEntry, emptyPlaceholder } = reportingStore;
@@ -89,15 +90,32 @@ const showBillableRate = computed(() => {
     );
 });
 
-// Ensure sub-group falls back when it collides with group
+// Ensure group, sub-group and sub-sub-group all stay distinct. A tag chosen at
+// level 1 or 2 disables the third level entirely (backend rejects tag + 3-level
+// grouping), so subSubGroup is cleared whenever that happens or when subGroup
+// itself is unset.
 watch(
-    group,
+    [group, subGroup],
     () => {
-        if (group.value === subGroup.value) {
-            const fallbackOption = groupByOptions.find((el) => el.value !== group.value);
-            if (fallbackOption?.value) {
-                subGroup.value = fallbackOption.value;
-            }
+        const taken: (GroupingOption | null)[] = [group.value];
+        if (subGroup.value === group.value) {
+            subGroup.value =
+                nextDistinctOption(
+                    taken,
+                    groupByOptions.map((o) => o.value)
+                ) ?? subGroup.value;
+        }
+        taken.push(subGroup.value);
+        // Tag anywhere in the first two levels disables the third level entirely.
+        const tagInUpperLevels = group.value === 'tag' || subGroup.value === 'tag';
+        if (!subGroup.value || tagInUpperLevels) {
+            subSubGroup.value = null;
+        } else if (subSubGroup.value && taken.includes(subSubGroup.value)) {
+            subSubGroup.value =
+                nextDistinctOption(
+                    [...taken, 'tag'],
+                    groupByOptions.map((o) => o.value)
+                ) ?? null;
         }
     },
     { immediate: true }
@@ -145,6 +163,11 @@ const tableQueryParams = computed<AggregatedTimeEntriesQueryParams>(() => {
         ...filterParams.value,
         group: group.value,
         sub_group: subGroup.value,
+        // The query schema's sub_sub_group enum excludes 'tag' (backend rejects
+        // tag + 3-level grouping); the watcher already guarantees subSubGroup never
+        // holds 'tag', this narrows the type to match.
+        sub_sub_group:
+            subSubGroup.value && subSubGroup.value !== 'tag' ? subSubGroup.value : undefined,
     };
 });
 
@@ -280,25 +303,43 @@ const groupedPieChartData = computed(() => {
     );
 });
 
-const tableData = computed(() => {
-    return aggregatedTableTimeEntries.value?.grouped_data?.map((entry) => {
-        return {
+// Structural (not the generated OpenAPI response) type: the response schema only
+// spells out grouped_data recursion up to the depth that existed before the third
+// grouping level, but the backend can now nest one level deeper. Declaring our own
+// self-referential shape lets the mapper recurse to any depth while remaining
+// structurally assignable from the generated response type.
+interface GroupedDataEntry {
+    key: string | null;
+    seconds: number;
+    cost: number | null;
+    grouped_type?: string | null;
+    grouped_data?: GroupedDataEntry[] | null;
+}
+
+type TableRow = {
+    seconds: number;
+    cost: number | null;
+    description: string | null | undefined;
+    grouped_data: TableRow[];
+};
+
+function mapGroupedData(
+    entries: GroupedDataEntry[] | null | undefined,
+    type: string | null
+): TableRow[] {
+    return (
+        entries?.map((entry) => ({
             seconds: entry.seconds,
             cost: entry.cost,
-            description: getNameForReportingRowEntry(
-                entry.key,
-                aggregatedTableTimeEntries.value?.grouped_type ?? null
-            ),
-            grouped_data:
-                entry.grouped_data?.map((el) => {
-                    return {
-                        seconds: el.seconds,
-                        cost: el.cost,
-                        description: getNameForReportingRowEntry(el.key, entry.grouped_type),
-                    };
-                }) ?? [],
-        };
-    });
+            description: getNameForReportingRowEntry(entry.key, type),
+            grouped_data: mapGroupedData(entry.grouped_data ?? null, entry.grouped_type ?? null),
+        })) ?? []
+    );
+}
+
+const tableData = computed<TableRow[] | undefined>(() => {
+    const root = aggregatedTableTimeEntries.value;
+    return root ? mapGroupedData(root.grouped_data ?? null, root.grouped_type ?? null) : undefined;
 });
 </script>
 
@@ -450,6 +491,19 @@ const tableData = computed(() => {
                         :group-by-options="
                             groupByOptions.filter((el) => el.value !== group)
                         "></ReportingGroupBySelect>
+                    <template v-if="subGroup && group !== 'tag' && subGroup !== 'tag'">
+                        <span>and</span>
+                        <ReportingGroupBySelect
+                            v-model="subSubGroup"
+                            :group-by-options="
+                                groupByOptions.filter(
+                                    (el) =>
+                                        el.value !== 'tag' &&
+                                        el.value !== group &&
+                                        el.value !== subGroup
+                                )
+                            "></ReportingGroupBySelect>
+                    </template>
                 </div>
                 <div
                     class="grid items-center"
