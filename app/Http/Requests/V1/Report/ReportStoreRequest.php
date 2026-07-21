@@ -152,6 +152,11 @@ class ReportStoreRequest extends BaseFormRequest
             'properties.sub_group' => [
                 'required',
                 Rule::enum(TimeEntryAggregationType::class),
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value !== null && $value !== '' && $value === $this->input('properties.group')) {
+                        $fail('The group and sub_group must be different.');
+                    }
+                },
             ],
             // Optional third grouping level. Must differ from group and sub_group.
             'properties.sub_sub_group' => [

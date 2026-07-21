@@ -509,8 +509,15 @@ class TimeEntryAggregationService
      *            }>
      *        }>
      */
-    public function fillGapsInTimeGroups(array $data, TimeEntryAggregationType $groupType, ?TimeEntryAggregationType $subGroupType, string $timezone, Weekday $startOfWeek, Carbon $start, Carbon $end): array
+    public function fillGapsInTimeGroups(?array $data, ?TimeEntryAggregationType $groupType, ?TimeEntryAggregationType $subGroupType, string $timezone, Weekday $startOfWeek, Carbon $start, Carbon $end): array
     {
+        // Once we recurse past the known grouping levels (or hit a leaf), there is
+        // nothing more to gap-fill: return the data unchanged instead of calling
+        // ->toInterval() on a null type (which previously crashed for a time level
+        // followed by a non-time level).
+        if ($groupType === null || $data === null) {
+            return $data ?? [];
+        }
         $interval = $groupType->toInterval();
         if ($interval === null) {
             foreach ($data as $key => $item) {

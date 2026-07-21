@@ -25,9 +25,11 @@
         <th style="border: 1px solid black; font-weight: bold;" data-type="{{ DataType::TYPE_STRING }}">
             Duration (decimal)
         </th>
+        @if($showBillableRate)
         <th style="border: 1px solid black; font-weight: bold;" data-type="{{ DataType::TYPE_STRING }}">
             Amount ({{ Str::upper($currency) }})
         </th>
+        @endif
     </tr>
     </thead>
     <tbody>
@@ -263,10 +265,12 @@
                     data-format="{{ NumberFormat::FORMAT_NUMBER_00 }}">
                     {{ $reportTotalInterval->totalHours }}
                 </td>
+                @if($showBillableRate)
                 <td style="border: 1px solid black; font-weight: bold;" data-type="{{ DataType::TYPE_NUMERIC }}"
                     data-format="{{ NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1 }}">
                     {{ BigDecimal::ofUnscaledValue($reportTotalCost, 2)->__toString() }}
                 </td>
+                @endif
             @else
                 <td style="border: 1px solid black; font-weight: bold;" data-type="{{ DataType::TYPE_FORMULA }}"
                     data-format="[hh]:mm:ss">
@@ -284,6 +288,7 @@
                         =0
                     @endif
                 </td>
+                @if($showBillableRate)
                 <td style="border: 1px solid black; font-weight: bold;" data-type="{{ DataType::TYPE_FORMULA }}"
                     data-format="{{ NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1 }}">
                     @if($counter > 1)
@@ -292,6 +297,7 @@
                         =0
                     @endif
                 </td>
+                @endif
             @endif
         @endif
     </tr>
