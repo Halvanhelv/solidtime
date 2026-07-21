@@ -4124,6 +4124,7 @@ If the group parameters are all set to &#x60;null&#x60; or are all missing, the 
                         'client',
                         'billable',
                         'description',
+                        'tag',
                     ])
                     .optional(),
             },
@@ -4331,6 +4332,7 @@ If the group parameters are all set to &#x60;null&#x60; or are all missing, the 
                         'client',
                         'billable',
                         'description',
+                        'tag',
                     ])
                     .optional(),
             },
