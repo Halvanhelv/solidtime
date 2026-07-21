@@ -409,6 +409,7 @@ class TimeEntryController extends Controller
 
         $group1Type = $request->getGroup();
         $group2Type = $request->getSubGroup();
+        $group3Type = $request->getSubSubGroup();
         $timeEntriesAggregateQuery = $this->getTimeEntriesAggregateQuery($organization, $request, $member);
         $roundingType = $canAccessPremiumFeatures ? $request->getRoundingType() : null;
         $roundingMinutes = $canAccessPremiumFeatures ? $request->getRoundingMinutes() : null;
@@ -424,7 +425,8 @@ class TimeEntryController extends Controller
             $request->getEnd(),
             $showBillableRate,
             $roundingType,
-            $roundingMinutes
+            $roundingMinutes,
+            $group3Type
         );
 
         return [
@@ -463,6 +465,7 @@ class TimeEntryController extends Controller
 
         $group = $request->getGroup();
         $subGroup = $request->getSubGroup();
+        $subSubGroup = $request->getSubSubGroup();
         $timeEntriesAggregateQuery = $this->getTimeEntriesAggregateQuery($organization, $request, $member);
         $roundingType = $canAccessPremiumFeatures ? $request->getRoundingType() : null;
         $roundingMinutes = $canAccessPremiumFeatures ? $request->getRoundingMinutes() : null;
@@ -478,7 +481,8 @@ class TimeEntryController extends Controller
             $request->getEnd(),
             $showBillableRate,
             $roundingType,
-            $roundingMinutes
+            $roundingMinutes,
+            $subSubGroup
         );
         $dataHistoryChart = $timeEntryAggregationService->getAggregatedTimeEntries(
             $timeEntriesAggregateQuery->clone(),
@@ -539,6 +543,7 @@ class TimeEntryController extends Controller
                 'currency' => $currency,
                 'group' => $group,
                 'subGroup' => $subGroup,
+                'subSubGroup' => $subSubGroup,
                 'timezone' => $timezone,
                 'start' => $request->getStart()->timezone($timezone),
                 'end' => $request->getEnd()->timezone($timezone),
@@ -573,7 +578,7 @@ class TimeEntryController extends Controller
                 ->putFileAs($folderPath, new File($tempFolder->path($filenameTemp)), $filename);
         } else {
             Excel::store(
-                new TimeEntriesReportExport($aggregatedData, $format, $currency, $group, $subGroup, $showBillableRate),
+                new TimeEntriesReportExport($aggregatedData, $format, $currency, $group, $subGroup, $showBillableRate, $subSubGroup),
                 $path,
                 config('filesystems.private'),
                 $format->getExportPackageType(),

@@ -2076,6 +2076,32 @@ class TimeEntryEndpointTest extends ApiEndpointTestAbstract
         $response->assertJsonValidationErrorFor('sub_sub_group');
     }
 
+    public function test_aggregate_endpoint_returns_three_level_tree(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        $project = Project::factory()->forOrganization($data->organization)->create();
+        TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->forProject($project)->startWithDuration(Carbon::now(), 60)->create(['description' => 'A']);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate', [
+            $data->organization->getKey(),
+            'group' => 'user',
+            'sub_group' => 'project',
+            'sub_sub_group' => 'description',
+        ]));
+
+        // Assert
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.grouped_type', 'user');
+        $response->assertJsonPath('data.grouped_data.0.grouped_type', 'project');
+        $response->assertJsonPath('data.grouped_data.0.grouped_data.0.grouped_type', 'description');
+        $response->assertJsonPath('data.grouped_data.0.grouped_data.0.grouped_data.0.key', 'A');
+    }
+
     public function test_aggregate_endpoint_works_for_user_with_only_access_to_own_time_entries(): void
     {
         // Arrange
