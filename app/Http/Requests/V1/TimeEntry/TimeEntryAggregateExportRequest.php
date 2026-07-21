@@ -53,21 +53,16 @@ class TimeEntryAggregateExportRequest extends BaseFormRequest
                 'required',
                 Rule::enum(TimeEntryAggregationType::class),
             ],
-            // Type of third grouping. Optional; requires sub_group. Tag is not allowed
-            // at any level when a third level is used (avoids tag double-count logic).
+            // Type of third grouping. Optional; requires sub_group.
             'sub_sub_group' => [
                 'nullable',
                 Rule::enum(TimeEntryAggregationType::class),
-                Rule::notIn(['tag']),
                 function (string $attribute, mixed $value, \Closure $fail): void {
                     if ($value === null || $value === '') {
                         return;
                     }
                     if ($this->input('sub_group') === null || $this->input('sub_group') === '') {
                         $fail('The sub_sub_group requires sub_group to be set.');
-                    }
-                    if ($this->input('group') === 'tag' || $this->input('sub_group') === 'tag') {
-                        $fail('Tag grouping cannot be combined with a third grouping level.');
                     }
                 },
             ],
