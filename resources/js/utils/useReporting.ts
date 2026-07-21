@@ -30,6 +30,15 @@ export type GroupingOption =
     | 'month'
     | 'year';
 
+// Clockify parity: 'description' is the only dimension with no meaningful further
+// subdivision, so it is the sole grouping option that terminates the slot chain
+// (no sub-group/sub-sub-group can follow it).
+export const TERMINAL_GROUP_OPTIONS: GroupingOption[] = ['description'];
+
+export function isTerminalGroupOption(option: GroupingOption | null): boolean {
+    return option !== null && TERMINAL_GROUP_OPTIONS.includes(option);
+}
+
 export function nextDistinctOption(
     taken: (GroupingOption | null)[],
     options: GroupingOption[]

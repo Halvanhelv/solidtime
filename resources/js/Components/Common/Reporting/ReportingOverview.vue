@@ -34,7 +34,12 @@ import UpgradeModal from '@/Components/Common/UpgradeModal.vue';
 import { canCreateReports } from '@/utils/permissions';
 import { isAllowedToPerformPremiumAction } from '@/utils/billing';
 import { computed, type ComputedRef, inject, ref, watch } from 'vue';
-import { type GroupingOption, nextDistinctOption, useReportingStore } from '@/utils/useReporting';
+import {
+    type GroupingOption,
+    isTerminalGroupOption,
+    nextDistinctOption,
+    useReportingStore,
+} from '@/utils/useReporting';
 import {
     type AggregatedTimeEntries,
     type AggregatedTimeEntriesQueryParams,
@@ -76,7 +81,7 @@ const roundingType = ref<TimeEntryRoundingType>('nearest');
 const roundingMinutes = ref<number>(15);
 
 const group = useStorage<GroupingOption>('reporting-group', 'project');
-const subGroup = useStorage<GroupingOption>('reporting-sub-group', 'task');
+const subGroup = useStorage<GroupingOption | null>('reporting-sub-group', 'task');
 const subSubGroup = useStorage<GroupingOption | null>('reporting-sub-sub-group', null);
 
 const reportingStore = useReportingStore();
@@ -90,36 +95,49 @@ const showBillableRate = computed(() => {
     );
 });
 
-// Ensure group, sub-group and sub-sub-group all stay distinct. A tag chosen at
-// level 1 or 2 disables the third level entirely (backend rejects tag + 3-level
-// grouping), so subSubGroup is cleared whenever that happens or when subGroup
-// itself is unset.
+// Ensure group, sub-group and sub-sub-group all stay distinct, Clockify-style:
+// slot 2 cannot exist under a terminal slot 1 (e.g. 'description'), and slot 3
+// cannot exist without slot 2 or under a terminal slot 2. Tag is not special-cased
+// here anymore — it behaves like any other non-terminal dimension.
 watch(
     [group, subGroup],
     () => {
-        const taken: (GroupingOption | null)[] = [group.value];
-        if (subGroup.value === group.value) {
-            subGroup.value =
-                nextDistinctOption(
-                    taken,
-                    groupByOptions.map((o) => o.value)
-                ) ?? subGroup.value;
+        const options = groupByOptions.map((o) => o.value);
+        // slot 2 cannot exist under a terminal slot 1
+        if (isTerminalGroupOption(group.value)) {
+            subGroup.value = null;
+        } else if (subGroup.value === group.value) {
+            subGroup.value = nextDistinctOption([group.value], options) ?? null;
         }
-        taken.push(subGroup.value);
-        // Tag anywhere in the first two levels disables the third level entirely.
-        const tagInUpperLevels = group.value === 'tag' || subGroup.value === 'tag';
-        if (!subGroup.value || tagInUpperLevels) {
+        // slot 3 cannot exist without slot 2 or under a terminal slot 2
+        if (!subGroup.value || isTerminalGroupOption(subGroup.value)) {
             subSubGroup.value = null;
-        } else if (subSubGroup.value && taken.includes(subSubGroup.value)) {
-            subSubGroup.value =
-                nextDistinctOption(
-                    [...taken, 'tag'],
-                    groupByOptions.map((o) => o.value)
-                ) ?? null;
+        } else if (
+            subSubGroup.value &&
+            (subSubGroup.value === group.value || subSubGroup.value === subGroup.value)
+        ) {
+            subSubGroup.value = nextDistinctOption([group.value, subGroup.value], options) ?? null;
         }
     },
     { immediate: true }
 );
+
+// Save Report and Export still require a concrete two-level grouping (their
+// backend request validation — ReportStoreRequest / the export endpoint — was not
+// changed by this task and still marks sub_group as required), so when the
+// table's sub-group slot is cleared to "(None)" these two flows fall back to the
+// next non-conflicting dimension rather than sending an invalid null.
+const subGroupForReports = computed<GroupingOption>(() => {
+    if (subGroup.value) {
+        return subGroup.value;
+    }
+    return (
+        nextDistinctOption(
+            [group.value],
+            groupByOptions.map((o) => o.value)
+        ) ?? group.value
+    );
+});
 
 function getOptimalGroupingOption(start: string, end: string): 'day' | 'week' | 'month' {
     const diffInDays = getDayJsInstance()(end).diff(getDayJsInstance()(start), 'd');
@@ -162,12 +180,8 @@ const tableQueryParams = computed<AggregatedTimeEntriesQueryParams>(() => {
     return {
         ...filterParams.value,
         group: group.value,
-        sub_group: subGroup.value,
-        // The query schema's sub_sub_group enum excludes 'tag' (backend rejects
-        // tag + 3-level grouping); the watcher already guarantees subSubGroup never
-        // holds 'tag', this narrows the type to match.
-        sub_sub_group:
-            subSubGroup.value && subSubGroup.value !== 'tag' ? subSubGroup.value : undefined,
+        sub_group: subGroup.value ?? undefined,
+        sub_sub_group: subSubGroup.value ?? undefined,
     };
 });
 
@@ -213,7 +227,7 @@ const reportProperties = computed(() => {
         ...rest,
         billable: billableValue,
         group: group.value,
-        sub_group: subGroup.value,
+        sub_group: subGroupForReports.value,
         history_group: getOptimalGroupingOption(startDate.value, endDate.value),
     } as CreateReportBodyProperties;
 });
@@ -230,7 +244,7 @@ async function downloadExport(format: ExportFormat) {
                     queries: {
                         ...filterParams.value,
                         group: group.value,
-                        sub_group: subGroup.value,
+                        sub_group: subGroupForReports.value,
                         history_group: getOptimalGroupingOption(startDate.value, endDate.value),
                         format: format,
                     },
@@ -485,22 +499,23 @@ const tableData = computed<TableRow[] | undefined>(() => {
                     <ReportingGroupBySelect
                         v-model="group"
                         :group-by-options="groupByOptions"></ReportingGroupBySelect>
-                    <span>and</span>
-                    <ReportingGroupBySelect
-                        v-model="subGroup"
-                        :group-by-options="
-                            groupByOptions.filter((el) => el.value !== group)
-                        "></ReportingGroupBySelect>
-                    <template v-if="subGroup && group !== 'tag' && subGroup !== 'tag'">
+                    <template v-if="!isTerminalGroupOption(group)">
+                        <span>and</span>
+                        <ReportingGroupBySelect
+                            v-model="subGroup"
+                            allow-none
+                            :group-by-options="
+                                groupByOptions.filter((el) => el.value !== group)
+                            "></ReportingGroupBySelect>
+                    </template>
+                    <template v-if="subGroup && !isTerminalGroupOption(subGroup)">
                         <span>and</span>
                         <ReportingGroupBySelect
                             v-model="subSubGroup"
+                            allow-none
                             :group-by-options="
                                 groupByOptions.filter(
-                                    (el) =>
-                                        el.value !== 'tag' &&
-                                        el.value !== group &&
-                                        el.value !== subGroup
+                                    (el) => el.value !== group && el.value !== subGroup
                                 )
                             "></ReportingGroupBySelect>
                     </template>

@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { computed, ref } from 'vue';
 import { useNavVisibility } from '@/utils/navVisibility';
-import { nextDistinctOption, useReportingStore } from './useReporting';
+import {
+    isTerminalGroupOption,
+    nextDistinctOption,
+    TERMINAL_GROUP_OPTIONS,
+    useReportingStore,
+} from './useReporting';
 
 vi.mock('@/utils/navVisibility', () => ({
     useNavVisibility: vi.fn(),
@@ -85,6 +90,20 @@ describe('useReportingStore getNameForReportingRowEntry time labels', () => {
     it('returns a year key unchanged', () => {
         const store = useReportingStore();
         expect(store.getNameForReportingRowEntry('2024', 'year')).toBe('2024');
+    });
+});
+
+describe('terminal group options', () => {
+    it('marks description as terminal', () => {
+        expect(isTerminalGroupOption('description')).toBe(true);
+    });
+    it('marks non-description dimensions as non-terminal', () => {
+        expect(isTerminalGroupOption('user')).toBe(false);
+        expect(isTerminalGroupOption('date' as never)).toBe(false);
+        expect(isTerminalGroupOption(null)).toBe(false);
+    });
+    it('exposes description as the only terminal option', () => {
+        expect(TERMINAL_GROUP_OPTIONS).toEqual(['description']);
     });
 });
 
