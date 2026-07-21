@@ -36,21 +36,28 @@ class TimeEntryAggregationService
      *               key: string|null,
      *               seconds: int,
      *               cost: int|null,
-     *               grouped_type: null,
-     *               grouped_data: null
+     *               grouped_type: string|null,
+     *               grouped_data: null|array<array{
+     *                   key: string|null,
+     *                   seconds: int,
+     *                   cost: int|null,
+     *                   grouped_type: null,
+     *                   grouped_data: null
+     *               }>
      *           }>
      *       }>,
      *       seconds: int,
      *       cost: int|null
      * }
      */
-    public function getAggregatedTimeEntries(Builder $timeEntriesQuery, ?TimeEntryAggregationType $group1Type, ?TimeEntryAggregationType $group2Type, string $timezone, Weekday $startOfWeek, bool $fillGapsInTimeGroups, ?Carbon $start, ?Carbon $end, bool $showBillableRate, ?TimeEntryRoundingType $roundingType, ?int $roundingMinutes): array
+    public function getAggregatedTimeEntries(Builder $timeEntriesQuery, ?TimeEntryAggregationType $group1Type, ?TimeEntryAggregationType $group2Type, string $timezone, Weekday $startOfWeek, bool $fillGapsInTimeGroups, ?Carbon $start, ?Carbon $end, bool $showBillableRate, ?TimeEntryRoundingType $roundingType, ?int $roundingMinutes, ?TimeEntryAggregationType $group3Type = null): array
     {
         $fillGapsInTimeGroupsIsPossible = $fillGapsInTimeGroups && $start !== null && $end !== null;
         /** @var Builder<TimeEntry> $baseTotalsQuery */
         $baseTotalsQuery = $timeEntriesQuery->clone();
         $group1Select = null;
         $group2Select = null;
+        $group3Select = null;
         $groupBy = null;
         // If any grouping is by tag, expand rows per tag and ensure a NULL row for entries without tags
         if (($group1Type === TimeEntryAggregationType::Tag) || ($group2Type === TimeEntryAggregationType::Tag)) {
@@ -68,6 +75,10 @@ class TimeEntryAggregationService
             if ($group2Type !== null) {
                 $group2Select = $this->getGroupByQuery($group2Type, $timezone, $startOfWeek);
                 $groupBy = ['group_1', 'group_2'];
+                if ($group3Type !== null) {
+                    $group3Select = $this->getGroupByQuery($group3Type, $timezone, $startOfWeek);
+                    $groupBy = ['group_1', 'group_2', 'group_3'];
+                }
             }
         }
 
@@ -77,6 +88,7 @@ class TimeEntryAggregationService
         $timeEntriesQuery->selectRaw(
             ($group1Select !== null ? $group1Select.' as group_1,' : '').
             ($group2Select !== null ? $group2Select.' as group_2,' : '').
+            ($group3Select !== null ? $group3Select.' as group_3,' : '').
             ' round(sum(extract(epoch from ('.$endRawSelect.' - '.$startRawSelect.')))) as aggregate,'.
             ' round(sum(extract(epoch from ('.$endRawSelect.' - '.$startRawSelect.')) * (coalesce(billable_rate, 0)::float/60/60))) as cost'
         );
@@ -87,13 +99,19 @@ class TimeEntryAggregationService
             $timeEntriesQuery->orderBy('group_1');
             if ($group2Select !== null) {
                 $timeEntriesQuery->orderBy('group_2');
+                if ($group3Select !== null) {
+                    $timeEntriesQuery->orderBy('group_3');
+                }
             }
         }
 
         $timeEntriesAggregates = $timeEntriesQuery->get();
 
         if ($group1Select !== null) {
-            $groupedAggregates = $timeEntriesAggregates->groupBy($group2Select !== null ? ['group_1', 'group_2'] : ['group_1']);
+            $groupedAggregates = $timeEntriesAggregates->groupBy(
+                $group3Select !== null ? ['group_1', 'group_2', 'group_3']
+                    : ($group2Select !== null ? ['group_1', 'group_2'] : ['group_1'])
+            );
 
             $group1Response = [];
             $group1ResponseSum = 0;
@@ -124,20 +142,52 @@ class TimeEntryAggregationService
                 if ($group2Select !== null) {
                     $group2ResponseSum = 0;
                     $group2ResponseCost = 0;
-                    foreach ($group1Aggregates as $group2 => $aggregate) {
+                    foreach ($group1Aggregates as $group2 => $group2Bucket) {
                         /** @var string|int $group2 */
-                        /** @var Collection<int, object{aggregate: int, cost: int}> $aggregate */
-                        $group2Response[] = [
-                            'key' => $group2 === '' ? null : (string) $group2,
-                            'seconds' => (int) $aggregate->get(0)->aggregate,
-                            'cost' => $showBillableRate ? (int) $aggregate->get(0)->cost : null,
-                            'grouped_type' => null,
-                            'grouped_data' => null,
-                        ];
-                        $group2ResponseSum += (int) $aggregate->get(0)->aggregate;
-                        $group2ResponseCost += (int) $aggregate->get(0)->cost;
+                        if ($group3Select !== null) {
+                            // $group2Bucket is keyed by group_3
+                            $group3Response = [];
+                            $group3ResponseSum = 0;
+                            $group3ResponseCost = 0;
+                            /** @var Collection<int|string, Collection<int, object{aggregate: int, cost: int}>> $group2Bucket */
+                            foreach ($group2Bucket as $group3 => $aggregate) {
+                                /** @var string|int $group3 */
+                                /** @var Collection<int, object{aggregate: int, cost: int}> $aggregate */
+                                $group3Response[] = [
+                                    'key' => $group3 === '' ? null : (string) $group3,
+                                    'seconds' => (int) $aggregate->get(0)->aggregate,
+                                    'cost' => $showBillableRate ? (int) $aggregate->get(0)->cost : null,
+                                    'grouped_type' => null,
+                                    'grouped_data' => null,
+                                ];
+                                $group3ResponseSum += (int) $aggregate->get(0)->aggregate;
+                                $group3ResponseCost += (int) $aggregate->get(0)->cost;
+                            }
+                            $group2Response[] = [
+                                'key' => $group2 === '' ? null : (string) $group2,
+                                'seconds' => $group3ResponseSum,
+                                'cost' => $showBillableRate ? $group3ResponseCost : null,
+                                'grouped_type' => $group3Type->value,
+                                'grouped_data' => $group3Response,
+                            ];
+                            $group2ResponseSum += $group3ResponseSum;
+                            $group2ResponseCost += $group3ResponseCost;
+                        } else {
+                            /** @var Collection<int, object{aggregate: int, cost: int}> $group2Bucket */
+                            $group2Response[] = [
+                                'key' => $group2 === '' ? null : (string) $group2,
+                                'seconds' => (int) $group2Bucket->get(0)->aggregate,
+                                'cost' => $showBillableRate ? (int) $group2Bucket->get(0)->cost : null,
+                                'grouped_type' => null,
+                                'grouped_data' => null,
+                            ];
+                            $group2ResponseSum += (int) $group2Bucket->get(0)->aggregate;
+                            $group2ResponseCost += (int) $group2Bucket->get(0)->cost;
+                        }
                     }
-                    // Override primary group totals when Tag is subgroup to avoid double counting
+                    // Override primary group totals when Tag is subgroup to avoid double counting.
+                    // Note: group_3 is never set together with a tag group (validation forbids it),
+                    // so this branch only runs in genuine two-level tag requests.
                     if ($group2Type === TimeEntryAggregationType::Tag) {
                         $keyForMap = (string) $group1;
                         if (array_key_exists($keyForMap, $baseTotalsPerGroup1Map)) {

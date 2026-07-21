@@ -11,6 +11,7 @@ use App\Models\Client;
 use App\Models\Project;
 use App\Models\Tag;
 use App\Models\TimeEntry;
+use App\Models\User;
 use App\Service\TimeEntryAggregationService;
 use Illuminate\Support\Carbon;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -1298,6 +1299,68 @@ class TimeEntryAggregationServiceTest extends TestCaseWithDatabase
                     'cost' => 0,
                     'grouped_type' => null,
                     'grouped_data' => null,
+                ],
+            ],
+        ], $result);
+    }
+
+    public function test_aggregate_time_entries_by_user_project_and_description_three_levels(): void
+    {
+        // Arrange
+        $user = User::factory()->create(['id' => '00000000-0000-0000-0000-000000000001']);
+        $project = Project::factory()->create(['id' => '5de4e6df-9560-4675-95be-18d42c441bfc']);
+        TimeEntry::factory()->startWithDuration(now(), 10)->forProject($project)->create([
+            'user_id' => $user->getKey(), 'description' => 'Test',
+        ]);
+        TimeEntry::factory()->startWithDuration(now(), 10)->forProject($project)->create([
+            'user_id' => $user->getKey(), 'description' => 'Test',
+        ]);
+        $query = TimeEntry::query();
+
+        // Act
+        $result = $this->service->getAggregatedTimeEntries(
+            $query,
+            TimeEntryAggregationType::User,
+            TimeEntryAggregationType::Project,
+            'Europe/Vienna',
+            Weekday::Monday,
+            false,
+            Carbon::now()->subDays(2)->utc(),
+            Carbon::now()->subDay()->utc(),
+            true,
+            null,
+            null,
+            TimeEntryAggregationType::Description,
+        );
+
+        // Assert
+        $this->assertSame([
+            'seconds' => 20,
+            'cost' => 0,
+            'grouped_type' => 'user',
+            'grouped_data' => [
+                [
+                    'key' => $user->getKey(),
+                    'seconds' => 20,
+                    'cost' => 0,
+                    'grouped_type' => 'project',
+                    'grouped_data' => [
+                        [
+                            'key' => $project->getKey(),
+                            'seconds' => 20,
+                            'cost' => 0,
+                            'grouped_type' => 'description',
+                            'grouped_data' => [
+                                [
+                                    'key' => 'Test',
+                                    'seconds' => 20,
+                                    'cost' => 0,
+                                    'grouped_type' => null,
+                                    'grouped_data' => null,
+                                ],
+                            ],
+                        ],
+                    ],
                 ],
             ],
         ], $result);
