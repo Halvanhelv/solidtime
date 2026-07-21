@@ -1132,6 +1132,45 @@ class TimeEntryEndpointTest extends ApiEndpointTestAbstract
         $this->assertStringContainsString('Billable', $html);
     }
 
+    public function test_aggregate_export_endpoint_in_debug_mode_renders_third_grouping_level(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+        $this->actAsOrganizationWithSubscription();
+        Config::set('services.gotenberg.url', null);
+        $project = Project::factory()->forOrganization($data->organization)->create();
+        TimeEntry::factory()
+            ->forOrganization($data->organization)
+            ->forMember($data->member)
+            ->forProject($project)
+            ->billable()
+            ->startWithDuration(Carbon::now()->subHours(2), 3600)
+            ->create(['description' => 'Deep work session']);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate-export', [
+            $data->organization->getKey(),
+            'format' => ExportFormat::PDF,
+            'group' => TimeEntryAggregationType::User,
+            'sub_group' => TimeEntryAggregationType::Project,
+            'sub_sub_group' => TimeEntryAggregationType::Description,
+            'history_group' => TimeEntryAggregationTypeInterval::Month,
+            'start' => Carbon::now()->startOfYear()->toIso8601ZuluString(),
+            'end' => Carbon::now()->endOfYear()->toIso8601ZuluString(),
+            'debug' => 'true',
+        ]));
+
+        // Assert
+        $this->assertResponseCode($response, 200);
+        $html = $response->json('html');
+        $this->assertIsString($html);
+        $this->assertStringContainsString('Deep work session', $html);
+        $this->assertStringContainsString($project->name, $html);
+    }
+
     public function test_index_export_endpoint_fails_if_user_wants_a_pdf_export_but_has_no_subscription(): void
     {
         // Arrange

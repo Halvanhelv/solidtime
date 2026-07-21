@@ -267,7 +267,7 @@
                     $totalDuration = 0;
                     $totalCost = 0;
                 @endphp
-                @foreach($group1Entry['grouped_data'] as $group2Entry)
+                @foreach($group1Entry['grouped_data'] ?? [] as $group2Entry)
                     @php
                         $duration = CarbonInterval::seconds($group2Entry['seconds']);
                     @endphp
@@ -291,6 +291,33 @@
                         </td>
                         @endif
                     </tr>
+                    @if($subSubGroup)
+                        @foreach($group2Entry['grouped_data'] ?? [] as $group3Entry)
+                            @php
+                                $duration3 = CarbonInterval::seconds($group3Entry['seconds']);
+                            @endphp
+                            <tr>
+                                <td style="padding-left: 24px; color: #71717a;">
+                                    @if($subSubGroup->is(\App\Enums\TimeEntryAggregationType::Billable))
+                                        {{ $group3Entry['key'] === '1' ? 'Billable' : 'Non-billable' }}
+                                    @else
+                                        {{ $group3Entry['description'] ?? $group3Entry['key'] ?? '-' }}
+                                    @endif
+                                </td>
+                                <td>
+                                    {{ $localization->formatIntervalForReporting($duration3) }}
+                                </td>
+                                <td>
+                                    {{ $localization->formatNumber($duration3->totalHours) }}
+                                </td>
+                                @if($showBillableRate)
+                                <td>
+                                    {{ $localization->formatCurrency(Money::of(BigDecimal::ofUnscaledValue($group3Entry['cost'], 2)->__toString(), $currency)) }}
+                                </td>
+                                @endif
+                            </tr>
+                        @endforeach
+                    @endif
                     @php
                         $totalDuration += $group2Entry['seconds'];
                         if ($showBillableRate) {
