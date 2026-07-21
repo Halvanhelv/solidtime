@@ -2140,6 +2140,30 @@ class TimeEntryEndpointTest extends ApiEndpointTestAbstract
         $response->assertJsonValidationErrorFor('sub_sub_group');
     }
 
+    public function test_aggregate_export_endpoint_rejects_sub_group_equal_to_group(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate-export', [
+            $data->organization->getKey(),
+            'format' => ExportFormat::CSV,
+            'group' => TimeEntryAggregationType::User->value,
+            'sub_group' => TimeEntryAggregationType::User->value,
+            'history_group' => TimeEntryAggregationTypeInterval::Month,
+            'start' => Carbon::now()->startOfYear()->toIso8601ZuluString(),
+            'end' => Carbon::now()->endOfYear()->toIso8601ZuluString(),
+        ]));
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrorFor('sub_group');
+    }
+
     public function test_aggregate_endpoint_accepts_distinct_three_level_group(): void
     {
         // Arrange
