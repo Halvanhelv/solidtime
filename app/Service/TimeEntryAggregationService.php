@@ -265,20 +265,29 @@ class TimeEntryAggregationService
      *               color: string|null,
      *               seconds: int,
      *               cost: int|null,
-     *               grouped_type: null,
-     *               grouped_data: null
+     *               grouped_type: string|null,
+     *               grouped_data: null|array<array{
+     *                   key: string|null,
+     *                   description: string|null,
+     *                   color: string|null,
+     *                   seconds: int,
+     *                   cost: int|null,
+     *                   grouped_type: null,
+     *                   grouped_data: null
+     *               }>
      *           }>
      *       }>,
      *       seconds: int,
      *       cost: int|null
      * }
      */
-    public function getAggregatedTimeEntriesWithDescriptions(Builder $timeEntriesQuery, ?TimeEntryAggregationType $group1Type, ?TimeEntryAggregationType $group2Type, string $timezone, Weekday $startOfWeek, bool $fillGapsInTimeGroups, ?Carbon $start, ?Carbon $end, bool $showBillableRate, ?TimeEntryRoundingType $roundingType, ?int $roundingMinutes): array
+    public function getAggregatedTimeEntriesWithDescriptions(Builder $timeEntriesQuery, ?TimeEntryAggregationType $group1Type, ?TimeEntryAggregationType $group2Type, string $timezone, Weekday $startOfWeek, bool $fillGapsInTimeGroups, ?Carbon $start, ?Carbon $end, bool $showBillableRate, ?TimeEntryRoundingType $roundingType, ?int $roundingMinutes, ?TimeEntryAggregationType $group3Type = null): array
     {
-        $aggregatedTimeEntries = $this->getAggregatedTimeEntries($timeEntriesQuery, $group1Type, $group2Type, $timezone, $startOfWeek, $fillGapsInTimeGroups, $start, $end, $showBillableRate, $roundingType, $roundingMinutes);
+        $aggregatedTimeEntries = $this->getAggregatedTimeEntries($timeEntriesQuery, $group1Type, $group2Type, $timezone, $startOfWeek, $fillGapsInTimeGroups, $start, $end, $showBillableRate, $roundingType, $roundingMinutes, $group3Type);
 
         $keysGroup1 = [];
         $keysGroup2 = [];
+        $keysGroup3 = [];
 
         if ($aggregatedTimeEntries['grouped_data'] !== null) {
             foreach ($aggregatedTimeEntries['grouped_data'] as $group1) {
@@ -286,6 +295,11 @@ class TimeEntryAggregationService
                 if ($group1['grouped_data'] !== null) {
                     foreach ($group1['grouped_data'] as $group2) {
                         $keysGroup2[] = $group2['key'];
+                        if ($group2['grouped_data'] !== null) {
+                            foreach ($group2['grouped_data'] as $group3) {
+                                $keysGroup3[] = $group3['key'];
+                            }
+                        }
                     }
                 }
             }
@@ -293,6 +307,7 @@ class TimeEntryAggregationService
 
         $descriptionMapGroup1 = $group1Type !== null ? $this->loadDescriptorsMap($keysGroup1, $group1Type) : [];
         $descriptionMapGroup2 = $group2Type !== null ? $this->loadDescriptorsMap($keysGroup2, $group2Type) : [];
+        $descriptionMapGroup3 = $group3Type !== null ? $this->loadDescriptorsMap($keysGroup3, $group3Type) : [];
 
         if ($aggregatedTimeEntries['grouped_data'] !== null) {
             foreach ($aggregatedTimeEntries['grouped_data'] as $keyGroup1 => $group1) {
@@ -302,6 +317,12 @@ class TimeEntryAggregationService
                     foreach ($aggregatedTimeEntries['grouped_data'][$keyGroup1]['grouped_data'] as $keyGroup2 => $group2) {
                         $aggregatedTimeEntries['grouped_data'][$keyGroup1]['grouped_data'][$keyGroup2]['description'] = $group2['key'] !== null ? ($descriptionMapGroup2[$group2['key']]['description'] ?? null) : null;
                         $aggregatedTimeEntries['grouped_data'][$keyGroup1]['grouped_data'][$keyGroup2]['color'] = $group2['key'] !== null ? ($descriptionMapGroup2[$group2['key']]['color'] ?? null) : null;
+                        if ($aggregatedTimeEntries['grouped_data'][$keyGroup1]['grouped_data'][$keyGroup2]['grouped_data'] !== null) {
+                            foreach ($aggregatedTimeEntries['grouped_data'][$keyGroup1]['grouped_data'][$keyGroup2]['grouped_data'] as $keyGroup3 => $group3) {
+                                $aggregatedTimeEntries['grouped_data'][$keyGroup1]['grouped_data'][$keyGroup2]['grouped_data'][$keyGroup3]['description'] = $group3['key'] !== null ? ($descriptionMapGroup3[$group3['key']]['description'] ?? null) : null;
+                                $aggregatedTimeEntries['grouped_data'][$keyGroup1]['grouped_data'][$keyGroup2]['grouped_data'][$keyGroup3]['color'] = $group3['key'] !== null ? ($descriptionMapGroup3[$group3['key']]['color'] ?? null) : null;
+                            }
+                        }
                     }
                 }
             }
@@ -323,8 +344,16 @@ class TimeEntryAggregationService
          *                color: string|null,
          *                seconds: int,
          *                cost: int,
-         *                grouped_type: null,
-         *                grouped_data: null
+         *                grouped_type: string|null,
+         *                grouped_data: null|array<array{
+         *                    key: string|null,
+         *                    description: string|null,
+         *                    color: string|null,
+         *                    seconds: int,
+         *                    cost: int,
+         *                    grouped_type: null,
+         *                    grouped_data: null
+         *                }>
          *            }>
          *        }>,
          *        seconds: int,

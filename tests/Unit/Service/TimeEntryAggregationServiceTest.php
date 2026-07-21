@@ -1365,4 +1365,72 @@ class TimeEntryAggregationServiceTest extends TestCaseWithDatabase
             ],
         ], $result);
     }
+
+    public function test_aggregated_time_entries_with_descriptions_by_user_project_and_description_three_levels(): void
+    {
+        // Arrange
+        $user = User::factory()->create();
+        $project = Project::factory()->create();
+        TimeEntry::factory()->startWithDuration(now(), 10)->forProject($project)->create([
+            'user_id' => $user->getKey(), 'description' => 'Test',
+        ]);
+        TimeEntry::factory()->startWithDuration(now(), 10)->forProject($project)->create([
+            'user_id' => $user->getKey(), 'description' => 'Test',
+        ]);
+        $query = TimeEntry::query();
+
+        // Act
+        $result = $this->service->getAggregatedTimeEntriesWithDescriptions(
+            $query,
+            TimeEntryAggregationType::User,
+            TimeEntryAggregationType::Project,
+            'Europe/Vienna',
+            Weekday::Monday,
+            false,
+            null,
+            null,
+            true,
+            null,
+            null,
+            TimeEntryAggregationType::Description,
+        );
+
+        // Assert
+        $this->assertSame([
+            'seconds' => 20,
+            'cost' => 0,
+            'grouped_type' => 'user',
+            'grouped_data' => [
+                [
+                    'key' => $user->getKey(),
+                    'seconds' => 20,
+                    'cost' => 0,
+                    'grouped_type' => 'project',
+                    'grouped_data' => [
+                        [
+                            'key' => $project->getKey(),
+                            'seconds' => 20,
+                            'cost' => 0,
+                            'grouped_type' => 'description',
+                            'grouped_data' => [
+                                [
+                                    'key' => 'Test',
+                                    'seconds' => 20,
+                                    'cost' => 0,
+                                    'grouped_type' => null,
+                                    'grouped_data' => null,
+                                    'description' => 'Test',
+                                    'color' => null,
+                                ],
+                            ],
+                            'description' => $project->name,
+                            'color' => $project->color,
+                        ],
+                    ],
+                    'description' => $user->name,
+                    'color' => null,
+                ],
+            ],
+        ], $result);
+    }
 }
