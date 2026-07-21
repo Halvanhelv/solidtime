@@ -10,6 +10,7 @@ use App\Enums\Weekday;
 use App\Models\Client;
 use App\Models\Project;
 use App\Models\Tag;
+use App\Models\Task;
 use App\Models\TimeEntry;
 use App\Models\User;
 use App\Service\TimeEntryAggregationService;
@@ -1468,5 +1469,36 @@ class TimeEntryAggregationServiceTest extends TestCaseWithDatabase
         $this->assertCount(2, $tagLeaves);
         $this->assertSame(10, $tagLeaves[0]['seconds']);
         $this->assertSame(10, $tagLeaves[1]['seconds']);
+    }
+
+    public function test_aggregate_time_entries_by_day_project_and_task_with_filled_gaps_does_not_throw(): void
+    {
+        // Arrange: a time-interval level (Day) followed by a non-time level
+        // (Project), with fill_gaps_in_time_groups=true, previously crashed with
+        // a TypeError (null->toInterval()) once the gap-filling recursion passed
+        // the non-time level. Regression test for that fix.
+        $project = Project::factory()->create();
+        $task = Task::factory()->forProject($project)->forOrganization($project->organization)->create();
+        TimeEntry::factory()->startWithDuration(now(), 10)->forProject($project)->forTask($task)->create();
+        $query = TimeEntry::query();
+
+        // Act
+        $result = $this->service->getAggregatedTimeEntries(
+            $query,
+            TimeEntryAggregationType::Day,
+            TimeEntryAggregationType::Project,
+            'Europe/Vienna',
+            Weekday::Monday,
+            true,
+            Carbon::now()->subDay()->utc(),
+            Carbon::now()->utc(),
+            true,
+            null,
+            null,
+            TimeEntryAggregationType::Task,
+        );
+
+        // Assert: no TypeError thrown, and the top-level grouping is still 'day'.
+        $this->assertSame('day', $result['grouped_type']);
     }
 }
