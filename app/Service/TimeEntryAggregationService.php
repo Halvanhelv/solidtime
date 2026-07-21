@@ -52,6 +52,9 @@ class TimeEntryAggregationService
      */
     public function getAggregatedTimeEntries(Builder $timeEntriesQuery, ?TimeEntryAggregationType $group1Type, ?TimeEntryAggregationType $group2Type, string $timezone, Weekday $startOfWeek, bool $fillGapsInTimeGroups, ?Carbon $start, ?Carbon $end, bool $showBillableRate, ?TimeEntryRoundingType $roundingType, ?int $roundingMinutes, ?TimeEntryAggregationType $group3Type = null): array
     {
+        if ($group3Type === TimeEntryAggregationType::Tag) {
+            throw new \InvalidArgumentException('Tag grouping is not supported as the third aggregation level (sub_sub_group).');
+        }
         $fillGapsInTimeGroupsIsPossible = $fillGapsInTimeGroups && $start !== null && $end !== null;
         /** @var Builder<TimeEntry> $baseTotalsQuery */
         $baseTotalsQuery = $timeEntriesQuery->clone();

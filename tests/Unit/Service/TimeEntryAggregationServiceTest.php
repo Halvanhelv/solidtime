@@ -1433,4 +1433,30 @@ class TimeEntryAggregationServiceTest extends TestCaseWithDatabase
             ],
         ], $result);
     }
+
+    public function test_aggregate_time_entries_throws_exception_if_third_level_group_is_tag(): void
+    {
+        // Arrange
+        $query = TimeEntry::query();
+
+        // Assert
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Tag grouping is not supported as the third aggregation level (sub_sub_group).');
+
+        // Act
+        $this->service->getAggregatedTimeEntries(
+            $query,
+            TimeEntryAggregationType::User,
+            TimeEntryAggregationType::Project,
+            'Europe/Vienna',
+            Weekday::Monday,
+            false,
+            null,
+            null,
+            true,
+            null,
+            null,
+            TimeEntryAggregationType::Tag,
+        );
+    }
 }
