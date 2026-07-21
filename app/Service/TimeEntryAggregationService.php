@@ -52,9 +52,6 @@ class TimeEntryAggregationService
      */
     public function getAggregatedTimeEntries(Builder $timeEntriesQuery, ?TimeEntryAggregationType $group1Type, ?TimeEntryAggregationType $group2Type, string $timezone, Weekday $startOfWeek, bool $fillGapsInTimeGroups, ?Carbon $start, ?Carbon $end, bool $showBillableRate, ?TimeEntryRoundingType $roundingType, ?int $roundingMinutes, ?TimeEntryAggregationType $group3Type = null): array
     {
-        if ($group3Type === TimeEntryAggregationType::Tag) {
-            throw new \InvalidArgumentException('Tag grouping is not supported as the third aggregation level (sub_sub_group).');
-        }
         $fillGapsInTimeGroupsIsPossible = $fillGapsInTimeGroups && $start !== null && $end !== null;
         /** @var Builder<TimeEntry> $baseTotalsQuery */
         $baseTotalsQuery = $timeEntriesQuery->clone();
@@ -63,7 +60,7 @@ class TimeEntryAggregationService
         $group3Select = null;
         $groupBy = null;
         // If any grouping is by tag, expand rows per tag and ensure a NULL row for entries without tags
-        if (($group1Type === TimeEntryAggregationType::Tag) || ($group2Type === TimeEntryAggregationType::Tag)) {
+        if (($group1Type === TimeEntryAggregationType::Tag) || ($group2Type === TimeEntryAggregationType::Tag) || ($group3Type === TimeEntryAggregationType::Tag)) {
             $timeEntriesQuery->crossJoin(DB::raw(
                 "LATERAL (\n".
                 "  SELECT jsonb_array_elements_text(coalesce(tags, '[]'::jsonb)) AS tag\n".
@@ -139,6 +136,29 @@ class TimeEntryAggregationService
                     ];
                 }
             }
+            // If Tag is the third group, prepare base totals per (group_1, group_2) pair
+            // without tag expansion, to correct the inflated parent totals.
+            $baseTotalsPerGroup1Group2Map = [];
+            if ($group3Type === TimeEntryAggregationType::Tag && $group2Select !== null) {
+                $baseTotalsPerPairQuery = $baseTotalsQuery->clone();
+                $baseTotalsPerPair = $baseTotalsPerPairQuery
+                    ->selectRaw(
+                        $group1Select.' as group_1,'.
+                        $group2Select.' as group_2,'.
+                        ' round(sum(extract(epoch from ('.$endRawSelect.' - '.$startRawSelect.')))) as aggregate,'.
+                        ' round(sum(extract(epoch from ('.$endRawSelect.' - '.$startRawSelect.')) * (coalesce(billable_rate, 0)::float/60/60))) as cost'
+                    )
+                    ->groupBy('group_1', 'group_2')
+                    ->get();
+                foreach ($baseTotalsPerPair as $row) {
+                    /** @var object{group_1: mixed, group_2: mixed, aggregate: int|null, cost: int|null} $row */
+                    $pairKey = ((string) ($row->group_1 ?? ''))."\x1f".((string) ($row->group_2 ?? ''));
+                    $baseTotalsPerGroup1Group2Map[$pairKey] = [
+                        'aggregate' => (int) ($row->aggregate ?? 0),
+                        'cost' => (int) ($row->cost ?? 0),
+                    ];
+                }
+            }
             foreach ($groupedAggregates as $group1 => $group1Aggregates) {
                 /** @var string|int $group1 */
                 $group2Response = [];
@@ -166,15 +186,24 @@ class TimeEntryAggregationService
                                 $group3ResponseSum += (int) $aggregate->get(0)->aggregate;
                                 $group3ResponseCost += (int) $aggregate->get(0)->cost;
                             }
+                            $group2Seconds = $group3ResponseSum;
+                            $group2Cost = $group3ResponseCost;
+                            if ($group3Type === TimeEntryAggregationType::Tag) {
+                                $pairKey = ((string) $group1)."\x1f".((string) $group2);
+                                if (array_key_exists($pairKey, $baseTotalsPerGroup1Group2Map)) {
+                                    $group2Seconds = $baseTotalsPerGroup1Group2Map[$pairKey]['aggregate'];
+                                    $group2Cost = $baseTotalsPerGroup1Group2Map[$pairKey]['cost'];
+                                }
+                            }
                             $group2Response[] = [
                                 'key' => $group2 === '' ? null : (string) $group2,
-                                'seconds' => $group3ResponseSum,
-                                'cost' => $showBillableRate ? $group3ResponseCost : null,
+                                'seconds' => $group2Seconds,
+                                'cost' => $showBillableRate ? $group2Cost : null,
                                 'grouped_type' => $group3Type->value,
                                 'grouped_data' => $group3Response,
                             ];
-                            $group2ResponseSum += $group3ResponseSum;
-                            $group2ResponseCost += $group3ResponseCost;
+                            $group2ResponseSum += $group2Seconds;
+                            $group2ResponseCost += $group2Cost;
                         } else {
                             /** @var Collection<int, object{aggregate: int, cost: int}> $group2Bucket */
                             $group2Response[] = [
@@ -189,8 +218,9 @@ class TimeEntryAggregationService
                         }
                     }
                     // Override primary group totals when Tag is subgroup to avoid double counting.
-                    // Note: group_3 is never set together with a tag group (validation forbids it),
-                    // so this branch only runs in genuine two-level tag requests.
+                    // Note: when group_3 is Tag, group_2 totals are already corrected above via
+                    // $baseTotalsPerGroup1Group2Map, so this branch only re-corrects the genuine
+                    // two-level tag-as-group_2 case.
                     if ($group2Type === TimeEntryAggregationType::Tag) {
                         $keyForMap = (string) $group1;
                         if (array_key_exists($keyForMap, $baseTotalsPerGroup1Map)) {
@@ -217,7 +247,7 @@ class TimeEntryAggregationService
             }
 
             // If Tag is selected in any grouping, compute overall totals from base (non-tag-expanded) query to avoid double counting
-            $hasTagGrouping = ($group1Type === TimeEntryAggregationType::Tag) || ($group2Type === TimeEntryAggregationType::Tag);
+            $hasTagGrouping = ($group1Type === TimeEntryAggregationType::Tag) || ($group2Type === TimeEntryAggregationType::Tag) || ($group3Type === TimeEntryAggregationType::Tag);
             if ($hasTagGrouping) {
                 // Reset selects and ordering on the cloned base query
                 $baseTotals = $baseTotalsQuery

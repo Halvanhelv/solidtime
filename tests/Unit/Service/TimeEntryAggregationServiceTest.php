@@ -1434,29 +1434,39 @@ class TimeEntryAggregationServiceTest extends TestCaseWithDatabase
         ], $result);
     }
 
-    public function test_aggregate_time_entries_throws_exception_if_third_level_group_is_tag(): void
+    public function test_aggregate_three_levels_with_tag_as_third_level_does_not_double_count(): void
     {
-        // Arrange
+        // Arrange: one user, one project, one entry carrying TWO tags → the tag
+        // expansion would double the project/user totals if not corrected.
+        $user = User::factory()->create(['id' => '00000000-0000-0000-0000-000000000001']);
+        $project = Project::factory()->create(['id' => '5de4e6df-9560-4675-95be-18d42c441bfc']);
+        $tagA = Tag::factory()->create(['name' => 'A']);
+        $tagB = Tag::factory()->create(['name' => 'B']);
+        TimeEntry::factory()->startWithDuration(now(), 10)->forProject($project)->create([
+            'user_id' => $user->getKey(),
+            'tags' => [$tagA->getKey(), $tagB->getKey()],
+        ]);
         $query = TimeEntry::query();
 
-        // Assert
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Tag grouping is not supported as the third aggregation level (sub_sub_group).');
-
-        // Act
-        $this->service->getAggregatedTimeEntries(
+        // Act: User -> Project -> Tag
+        $result = $this->service->getAggregatedTimeEntries(
             $query,
             TimeEntryAggregationType::User,
             TimeEntryAggregationType::Project,
-            'Europe/Vienna',
-            Weekday::Monday,
-            false,
-            null,
-            null,
-            true,
-            null,
-            null,
+            'Europe/Vienna', Weekday::Monday, false,
+            Carbon::now()->subDays(2)->utc(), Carbon::now()->subDay()->utc(),
+            true, null, null,
             TimeEntryAggregationType::Tag,
         );
+
+        // Assert: overall / user / project totals are the REAL 10s (not 20s from double count);
+        // the two tag leaves are 10s each.
+        $this->assertSame(10, $result['seconds']);
+        $this->assertSame(10, $result['grouped_data'][0]['seconds']);              // user
+        $this->assertSame(10, $result['grouped_data'][0]['grouped_data'][0]['seconds']); // project
+        $tagLeaves = $result['grouped_data'][0]['grouped_data'][0]['grouped_data'];
+        $this->assertCount(2, $tagLeaves);
+        $this->assertSame(10, $tagLeaves[0]['seconds']);
+        $this->assertSame(10, $tagLeaves[1]['seconds']);
     }
 }

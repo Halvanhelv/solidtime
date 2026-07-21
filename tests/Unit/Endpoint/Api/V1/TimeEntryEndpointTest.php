@@ -2070,15 +2070,12 @@ class TimeEntryEndpointTest extends ApiEndpointTestAbstract
         ]));
 
         // Assert
-        // Request validation now allows tag at any level, including sub_sub_group (this task).
-        // The request no longer fails with a 422/validation error for sub_sub_group.
-        // NOTE: `TimeEntryAggregationService::getAggregatedTimeEntries` still has a
-        // pre-existing, deliberate guard (`$group3Type === TimeEntryAggregationType::Tag`)
-        // that throws InvalidArgumentException -> 500, because the tag-expansion/double-count
-        // avoidance logic in that service only accounts for group1Type/group2Type being Tag,
-        // not group3Type. Supporting tag as sub_sub_group end-to-end needs dedicated
-        // service-layer work (out of scope here) - tracked as a follow-up task.
-        $response->assertStatus(500);
+        // Request validation allows tag at any level, including sub_sub_group.
+        // `TimeEntryAggregationService::getAggregatedTimeEntries` now fully supports tag
+        // as the third aggregation level (its guard was removed and the tag-expansion/
+        // double-count avoidance logic was extended to group3Type), so the request
+        // succeeds end-to-end.
+        $response->assertStatus(200);
         $this->assertArrayNotHasKey('errors', $response->json());
     }
 
