@@ -2099,6 +2099,68 @@ class TimeEntryEndpointTest extends ApiEndpointTestAbstract
         $response->assertJsonValidationErrorFor('sub_sub_group');
     }
 
+    public function test_aggregate_endpoint_rejects_sub_group_equal_to_group(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate', [
+            $data->organization->getKey(),
+            'group' => TimeEntryAggregationType::User->value,
+            'sub_group' => TimeEntryAggregationType::User->value,
+        ]));
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrorFor('sub_group');
+    }
+
+    public function test_aggregate_endpoint_rejects_sub_sub_group_equal_to_group(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate', [
+            $data->organization->getKey(),
+            'group' => TimeEntryAggregationType::Tag->value,
+            'sub_group' => TimeEntryAggregationType::User->value,
+            'sub_sub_group' => TimeEntryAggregationType::Tag->value,
+        ]));
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrorFor('sub_sub_group');
+    }
+
+    public function test_aggregate_endpoint_accepts_distinct_three_level_group(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate', [
+            $data->organization->getKey(),
+            'group' => TimeEntryAggregationType::User->value,
+            'sub_group' => TimeEntryAggregationType::Project->value,
+            'sub_sub_group' => TimeEntryAggregationType::Tag->value,
+        ]));
+
+        // Assert
+        $response->assertStatus(200);
+        $this->assertArrayNotHasKey('errors', $response->json());
+    }
+
     public function test_aggregate_endpoint_accepts_tag_at_group_with_third_level(): void
     {
         // Arrange

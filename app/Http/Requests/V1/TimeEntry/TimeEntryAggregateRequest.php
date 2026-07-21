@@ -45,6 +45,14 @@ class TimeEntryAggregateRequest extends BaseFormRequest
             'sub_group' => [
                 'nullable',
                 Rule::enum(TimeEntryAggregationType::class),
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+                    if ($this->input('group') !== null && $this->input('group') !== '' && $value === $this->input('group')) {
+                        $fail('The sub_group must be different from group.');
+                    }
+                },
             ],
             // Type of third grouping. Optional; requires sub_group.
             'sub_sub_group' => [
@@ -56,6 +64,13 @@ class TimeEntryAggregateRequest extends BaseFormRequest
                     }
                     if ($this->input('sub_group') === null || $this->input('sub_group') === '') {
                         $fail('The sub_sub_group requires sub_group to be set.');
+
+                        return;
+                    }
+                    if ($value === $this->input('group')) {
+                        $fail('The sub_sub_group must be different from group.');
+                    } elseif ($value === $this->input('sub_group')) {
+                        $fail('The sub_sub_group must be different from sub_group.');
                     }
                 },
             ],
