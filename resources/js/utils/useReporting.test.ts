@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { computed, ref } from 'vue';
 import { useNavVisibility } from '@/utils/navVisibility';
@@ -46,5 +46,48 @@ describe('useReportingStore groupByOptions', () => {
         setActivePinia(createPinia());
         const store = useReportingStore();
         expect(store.groupByOptions.some((option) => option.value === 'tag')).toBe(true);
+    });
+
+    it('offers day/week/month/year time-based group options', () => {
+        mockIsVisible(true);
+        setActivePinia(createPinia());
+        const store = useReportingStore();
+        const values = store.groupByOptions.map((option) => option.value);
+        expect(values).toEqual(
+            expect.arrayContaining(['day', 'week', 'month', 'year'])
+        );
+    });
+});
+
+describe('useReportingStore getNameForReportingRowEntry time labels', () => {
+    beforeEach(() => {
+        mockIsVisible(true);
+        setActivePinia(createPinia());
+        // getDayJsInstance() reads the week-start setting off the window global.
+        vi.stubGlobal('getWeekStartSetting', () => 'monday');
+    });
+
+    it('formats a day key as a readable date', () => {
+        const store = useReportingStore();
+        expect(store.getNameForReportingRowEntry('2024-01-15', 'day')).toBe(
+            'Mon, Jan 15, 2024'
+        );
+    });
+
+    it('formats a week key as "Week of ..."', () => {
+        const store = useReportingStore();
+        expect(store.getNameForReportingRowEntry('2024-01-15', 'week')).toBe(
+            'Week of Jan 15, 2024'
+        );
+    });
+
+    it('formats a month key as month + year', () => {
+        const store = useReportingStore();
+        expect(store.getNameForReportingRowEntry('2024-01', 'month')).toBe('January 2024');
+    });
+
+    it('returns a year key unchanged', () => {
+        const store = useReportingStore();
+        expect(store.getNameForReportingRowEntry('2024', 'year')).toBe('2024');
     });
 });

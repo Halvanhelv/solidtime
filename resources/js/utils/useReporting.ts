@@ -7,9 +7,15 @@ import { useMembersQuery } from '@/utils/useMembersQuery';
 import { useTasksQuery } from '@/utils/useTasksQuery';
 import { useClientsQuery } from '@/utils/useClientsQuery';
 import { useTagsQuery } from '@/utils/useTagsQuery';
-import { CheckCircleIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid';
+import {
+    CalendarIcon,
+    CheckCircleIcon,
+    UserCircleIcon,
+    UserGroupIcon,
+} from '@heroicons/vue/20/solid';
 import { DocumentTextIcon, FolderIcon } from '@heroicons/vue/16/solid';
 import BillableIcon from '@/packages/ui/src/Icons/BillableIcon.vue';
+import { getDayJsInstance } from '@/packages/ui/src/utils/time';
 
 export type GroupingOption =
     | 'project'
@@ -18,7 +24,11 @@ export type GroupingOption =
     | 'billable'
     | 'client'
     | 'description'
-    | 'tag';
+    | 'tag'
+    | 'day'
+    | 'week'
+    | 'month'
+    | 'year';
 
 export const useReportingStore = defineStore('reporting', () => {
     // Cache query composables to avoid creating new subscriptions on every call
@@ -71,6 +81,21 @@ export const useReportingStore = defineStore('reporting', () => {
                 return 'Billable';
             }
         }
+        // Time-based group keys arrive from the backend already shifted into the
+        // organization timezone, so parse them as plain calendar values (no extra
+        // tz math) and render a human-readable label.
+        if (type === 'day') {
+            return getDayJsInstance()(key).format('ddd, MMM D, YYYY');
+        }
+        if (type === 'week') {
+            return 'Week of ' + getDayJsInstance()(key).format('MMM D, YYYY');
+        }
+        if (type === 'month') {
+            return getDayJsInstance()(key, 'YYYY-MM').format('MMMM YYYY');
+        }
+        if (type === 'year') {
+            return key;
+        }
         return key;
     }
 
@@ -113,6 +138,26 @@ export const useReportingStore = defineStore('reporting', () => {
             label: 'Tags',
             value: 'tag',
             icon: DocumentTextIcon,
+        },
+        {
+            label: 'Day',
+            value: 'day',
+            icon: CalendarIcon,
+        },
+        {
+            label: 'Week',
+            value: 'week',
+            icon: CalendarIcon,
+        },
+        {
+            label: 'Month',
+            value: 'month',
+            icon: CalendarIcon,
+        },
+        {
+            label: 'Year',
+            value: 'year',
+            icon: CalendarIcon,
         },
     ];
 
