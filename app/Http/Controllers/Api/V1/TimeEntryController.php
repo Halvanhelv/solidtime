@@ -383,8 +383,14 @@ class TimeEntryController extends Controller
      *                  key: string|null,
      *                  seconds: int,
      *                  cost: int|null,
-     *                  grouped_type: null,
-     *                  grouped_data: null
+     *                  grouped_type: string|null,
+     *                  grouped_data: null|array<array{
+     *                      key: string|null,
+     *                      seconds: int,
+     *                      cost: int|null,
+     *                      grouped_type: null,
+     *                      grouped_data: null
+     *                  }>
      *              }>
      *          }>,
      *          seconds: int,

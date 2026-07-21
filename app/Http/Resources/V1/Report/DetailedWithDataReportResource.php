@@ -32,8 +32,16 @@ use Illuminate\Http\Request;
  *                  color: string|null,
  *                  seconds: int,
  *                  cost: int|null,
- *                  grouped_type: null,
- *                  grouped_data: null
+ *                  grouped_type: string|null,
+ *                  grouped_data: null|array<array{
+ *                      key: string|null,
+ *                      description: string|null,
+ *                      color: string|null,
+ *                      seconds: int,
+ *                      cost: int|null,
+ *                      grouped_type: null,
+ *                      grouped_data: null
+ *                  }>
  *              }>
  *          }>,
  *          seconds: int,

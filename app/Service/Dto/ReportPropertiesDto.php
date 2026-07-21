@@ -127,7 +127,7 @@ class ReportPropertiesDto implements Castable
                 $dto->group = TimeEntryAggregationType::from($data->group);
                 $dto->subGroup = TimeEntryAggregationType::from($data->subGroup);
                 // Optional; missing in reports persisted before the third level existed.
-                $dto->subSubGroup = isset($data->subSubGroup) && $data->subSubGroup !== null ? TimeEntryAggregationType::from($data->subSubGroup) : null;
+                $dto->subSubGroup = isset($data->subSubGroup) ? TimeEntryAggregationType::from($data->subSubGroup) : null;
                 $dto->historyGroup = TimeEntryAggregationTypeInterval::from($data->historyGroup);
                 $dto->weekStart = Weekday::from($data->weekStart);
                 $dto->timezone = $data->timezone;
