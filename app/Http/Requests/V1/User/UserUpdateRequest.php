@@ -9,6 +9,7 @@ use App\Enums\Weekday;
 use App\Http\Requests\V1\BaseFormRequest;
 use App\Models\User;
 use App\Rules\Base64ImageRule;
+use App\Service\TimezoneService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
@@ -26,6 +27,23 @@ class UserUpdateRequest extends BaseFormRequest
             $this->merge([
                 'email' => Str::lower((string) $this->input('email')),
             ]);
+        }
+
+        // Browsers/OSes may report legacy IANA zone names (e.g. Europe/Kiev,
+        // Europe/Uzhgorod) that Laravel's `timezone:all` rule rejects because it
+        // uses the non-backward-compat identifier list. Normalize them to the
+        // canonical name (Europe/Kyiv) before validation — same mapping used at
+        // registration (App\Actions\Fortify\CreateNewUser) — so the timezone
+        // update from the mismatch modal doesn't 422 for those users.
+        if ($this->has('timezone') && is_string($this->input('timezone'))) {
+            $service = app(TimezoneService::class);
+            $timezone = (string) $this->input('timezone');
+            if (! $service->isValid($timezone)) {
+                $mapped = $service->mapLegacyTimezone($timezone);
+                if ($mapped !== null) {
+                    $this->merge(['timezone' => $mapped]);
+                }
+            }
         }
     }
 
