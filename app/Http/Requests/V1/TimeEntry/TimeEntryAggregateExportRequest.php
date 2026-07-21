@@ -53,6 +53,24 @@ class TimeEntryAggregateExportRequest extends BaseFormRequest
                 'required',
                 Rule::enum(TimeEntryAggregationType::class),
             ],
+            // Type of third grouping. Optional; requires sub_group. Tag is not allowed
+            // at any level when a third level is used (avoids tag double-count logic).
+            'sub_sub_group' => [
+                'nullable',
+                Rule::enum(TimeEntryAggregationType::class),
+                Rule::notIn(['tag']),
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+                    if ($this->input('sub_group') === null || $this->input('sub_group') === '') {
+                        $fail('The sub_sub_group requires sub_group to be set.');
+                    }
+                    if ($this->input('group') === 'tag' || $this->input('sub_group') === 'tag') {
+                        $fail('Tag grouping cannot be combined with a third grouping level.');
+                    }
+                },
+            ],
             // Type of grouping of the historic aggregation (time chart)
             'history_group' => [
                 'required',
@@ -219,6 +237,13 @@ class TimeEntryAggregateExportRequest extends BaseFormRequest
     public function getSubGroup(): TimeEntryAggregationType
     {
         return TimeEntryAggregationType::from($this->input('sub_group'));
+    }
+
+    public function getSubSubGroup(): ?TimeEntryAggregationType
+    {
+        return $this->input('sub_sub_group') !== null && $this->input('sub_sub_group') !== ''
+            ? TimeEntryAggregationType::from($this->input('sub_sub_group'))
+            : null;
     }
 
     public function getHistoryGroup(): TimeEntryAggregationType

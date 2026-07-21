@@ -2014,6 +2014,68 @@ class TimeEntryEndpointTest extends ApiEndpointTestAbstract
         $response->assertJsonValidationErrorFor('group');
     }
 
+    public function test_aggregate_endpoint_rejects_sub_sub_group_of_tag(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate', [
+            $data->organization->getKey(),
+            'group' => TimeEntryAggregationType::User->value,
+            'sub_group' => TimeEntryAggregationType::Day->value,
+            'sub_sub_group' => TimeEntryAggregationType::Tag->value,
+        ]));
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrorFor('sub_sub_group');
+    }
+
+    public function test_aggregate_endpoint_rejects_sub_sub_group_without_sub_group(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate', [
+            $data->organization->getKey(),
+            'group' => TimeEntryAggregationType::User->value,
+            'sub_sub_group' => TimeEntryAggregationType::Description->value,
+        ]));
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrorFor('sub_sub_group');
+    }
+
+    public function test_aggregate_endpoint_rejects_sub_sub_group_when_group_is_tag(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.aggregate', [
+            $data->organization->getKey(),
+            'group' => TimeEntryAggregationType::Tag->value,
+            'sub_group' => TimeEntryAggregationType::User->value,
+            'sub_sub_group' => TimeEntryAggregationType::Day->value,
+        ]));
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrorFor('sub_sub_group');
+    }
+
     public function test_aggregate_endpoint_works_for_user_with_only_access_to_own_time_entries(): void
     {
         // Arrange
