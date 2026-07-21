@@ -116,6 +116,9 @@ const subGroup = computed(() => {
     }
     return 'project';
 });
+const subSubGroup = computed<string | null>(() => {
+    return sharedReportResponseData.value?.properties.sub_sub_group ?? null;
+});
 const { emptyPlaceholder } = useReportingStore();
 
 const groupedPieChartData = computed(() => {
@@ -219,6 +222,10 @@ onMounted(async () => {
                         <strong class="px-2">{{ getGroupLabel(group) }}</strong>
                         and
                         <strong class="px-2">{{ getGroupLabel(subGroup) }}</strong>
+                        <template v-if="subSubGroup">
+                            and
+                            <strong class="px-2">{{ getGroupLabel(subSubGroup) }}</strong>
+                        </template>
                     </div>
                     <div class="grid items-center" style="grid-template-columns: 1fr 100px 150px">
                         <div

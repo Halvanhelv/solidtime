@@ -518,6 +518,7 @@ const DetailedWithDataReportResource = z
             .object({
                 group: z.string(),
                 sub_group: z.string(),
+                sub_sub_group: z.union([z.string(), z.null()]).optional(),
                 history_group: z.string(),
                 start: z.string(),
                 end: z.string(),
