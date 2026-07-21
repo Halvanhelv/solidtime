@@ -557,7 +557,9 @@ const tableData = computed<TableRow[] | undefined>(() => {
                             v-model="subGroup"
                             allow-none
                             :group-by-options="
-                                groupByOptions.filter((el) => el.value !== group)
+                                groupByOptions.filter(
+                                    (el) => el.value !== group && el.value !== subSubGroup
+                                )
                             "></ReportingGroupBySelect>
                     </template>
                     <template v-if="subGroup && !isTerminalGroupOption(subGroup)">
