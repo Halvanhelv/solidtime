@@ -10,6 +10,7 @@ const props = withDefaults(
         icon?: Component;
         size?: 'small' | 'base';
         loading?: boolean;
+        disabled?: boolean;
         // Accept any valid Vue class binding shape (string | object | array)
         class?: Parameters<typeof twMerge>[0];
     }>(),
@@ -17,6 +18,7 @@ const props = withDefaults(
         type: 'button',
         size: 'base',
         loading: false,
+        disabled: false,
     }
 );
 
@@ -29,7 +31,7 @@ const sizeClasses = {
 <template>
     <button
         :type="type"
-        :disabled="loading"
+        :disabled="loading || disabled"
         :class="
             twMerge(
                 'bg-button-secondary-background border border-button-secondary-border hover:bg-button-secondary-background-hover shadow-sm transition text-text-primary rounded-lg font-medium inline-flex items-center space-x-1.5 focus-visible:outline-none focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-ring focus:border-transparent disabled:opacity-25 ease-in-out',

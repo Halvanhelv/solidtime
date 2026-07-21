@@ -122,23 +122,6 @@ watch(
     { immediate: true }
 );
 
-// Save Report and Export still require a concrete two-level grouping (their
-// backend request validation — ReportStoreRequest / the export endpoint — was not
-// changed by this task and still marks sub_group as required), so when the
-// table's sub-group slot is cleared to "(None)" these two flows fall back to the
-// next non-conflicting dimension rather than sending an invalid null.
-const subGroupForReports = computed<GroupingOption>(() => {
-    if (subGroup.value) {
-        return subGroup.value;
-    }
-    return (
-        nextDistinctOption(
-            [group.value],
-            groupByOptions.map((o) => o.value)
-        ) ?? group.value
-    );
-});
-
 function getOptimalGroupingOption(start: string, end: string): 'day' | 'week' | 'month' {
     const diffInDays = getDayJsInstance()(end).diff(getDayJsInstance()(start), 'd');
 
@@ -227,14 +210,22 @@ const reportProperties = computed(() => {
         ...rest,
         billable: billableValue,
         group: group.value,
-        sub_group: subGroupForReports.value,
+        // Save Report requires a concrete two-level grouping (ReportStoreRequest
+        // marks sub_group as required). The Save Report button is disabled
+        // whenever subGroup is null (see template), so this branch is only
+        // reachable with a real second dimension selected.
+        sub_group: subGroup.value as GroupingOption,
         history_group: getOptimalGroupingOption(startDate.value, endDate.value),
     } as CreateReportBodyProperties;
 });
 
 async function downloadExport(format: ExportFormat) {
     const organizationId = getCurrentOrganizationId();
-    if (organizationId) {
+    // Export requires a concrete two-level grouping (the export endpoint marks
+    // sub_group as required). The Export controls are disabled whenever subGroup
+    // is null (see template), so this is only reachable with it set.
+    const subGroupValue = subGroup.value;
+    if (organizationId && subGroupValue) {
         const response = await handleApiRequestNotifications(
             () =>
                 api.exportAggregatedTimeEntries({
@@ -244,7 +235,7 @@ async function downloadExport(format: ExportFormat) {
                     queries: {
                         ...filterParams.value,
                         group: group.value,
-                        sub_group: subGroupForReports.value,
+                        sub_group: subGroupValue,
                         history_group: getOptimalGroupingOption(startDate.value, endDate.value),
                         format: format,
                     },
@@ -267,7 +258,13 @@ const showCreateReportModal = ref(false);
 const showPremiumModal = ref(false);
 const exportLoading = ref(false);
 
+// Both flows fabricate a request the on-screen table doesn't represent if
+// subGroup is null, so they're guarded here in addition to disabling the
+// triggering controls in the template.
 function triggerExport(format: ExportFormat) {
+    if (!subGroup.value) {
+        return;
+    }
     if (format === 'pdf' && !isAllowedToPerformPremiumAction()) {
         showPremiumModal.value = true;
         return;
@@ -279,6 +276,9 @@ function triggerExport(format: ExportFormat) {
 }
 
 function onSaveReportClick() {
+    if (!subGroup.value) {
+        return;
+    }
     if (isAllowedToPerformPremiumAction()) {
         showCreateReportModal.value = true;
     } else {
@@ -376,7 +376,11 @@ const tableData = computed<TableRow[] | undefined>(() => {
         <div class="hidden sm:flex space-x-2">
             <DropdownMenu>
                 <DropdownMenuTrigger as-child>
-                    <SecondaryButton :icon="ArrowDownTrayIcon" :loading="exportLoading">
+                    <SecondaryButton
+                        :icon="ArrowDownTrayIcon"
+                        :loading="exportLoading"
+                        :disabled="!subGroup"
+                        :title="!subGroup ? 'Select a second grouping to export' : undefined">
                         Export
                     </SecondaryButton>
                 </DropdownMenuTrigger>
@@ -400,7 +404,12 @@ const tableData = computed<TableRow[] | undefined>(() => {
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
-            <SecondaryButton v-if="canCreateReports()" :icon="SaveIcon" @click="onSaveReportClick">
+            <SecondaryButton
+                v-if="canCreateReports()"
+                :icon="SaveIcon"
+                :disabled="!subGroup"
+                :title="!subGroup ? 'Select a second grouping to save a report' : undefined"
+                @click="onSaveReportClick">
                 Save Report
             </SecondaryButton>
         </div>
@@ -413,7 +422,10 @@ const tableData = computed<TableRow[] | undefined>(() => {
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuItem @click="triggerExport('pdf')">
+                <DropdownMenuItem
+                    :disabled="!subGroup"
+                    :title="!subGroup ? 'Select a second grouping to export' : undefined"
+                    @click="triggerExport('pdf')">
                     <div class="flex items-center space-x-2">
                         <span>Export as PDF</span>
                         <LockClosedIcon
@@ -421,12 +433,29 @@ const tableData = computed<TableRow[] | undefined>(() => {
                             class="w-3.5 text-text-tertiary" />
                     </div>
                 </DropdownMenuItem>
-                <DropdownMenuItem @click="triggerExport('xlsx')">
+                <DropdownMenuItem
+                    :disabled="!subGroup"
+                    :title="!subGroup ? 'Select a second grouping to export' : undefined"
+                    @click="triggerExport('xlsx')">
                     Export as Excel
                 </DropdownMenuItem>
-                <DropdownMenuItem @click="triggerExport('csv')"> Export as CSV </DropdownMenuItem>
-                <DropdownMenuItem @click="triggerExport('ods')"> Export as ODS </DropdownMenuItem>
-                <DropdownMenuItem v-if="canCreateReports()" @click="onSaveReportClick">
+                <DropdownMenuItem
+                    :disabled="!subGroup"
+                    :title="!subGroup ? 'Select a second grouping to export' : undefined"
+                    @click="triggerExport('csv')">
+                    Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    :disabled="!subGroup"
+                    :title="!subGroup ? 'Select a second grouping to export' : undefined"
+                    @click="triggerExport('ods')">
+                    Export as ODS
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    v-if="canCreateReports()"
+                    :disabled="!subGroup"
+                    :title="!subGroup ? 'Select a second grouping to save a report' : undefined"
+                    @click="onSaveReportClick">
                     Save Report
                 </DropdownMenuItem>
             </DropdownMenuContent>
