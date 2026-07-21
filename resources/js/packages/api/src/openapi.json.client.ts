@@ -452,6 +452,7 @@ const ReportStoreRequest = z
                 task_ids: z.union([z.array(z.string()), z.null()]).optional(),
                 group: TimeEntryAggregationType,
                 sub_group: TimeEntryAggregationType,
+                sub_sub_group: TimeEntryAggregationType.optional(),
                 history_group: TimeEntryAggregationTypeInterval,
                 week_start: Weekday.optional(),
                 timezone: z.union([z.string(), z.null()]).optional(),

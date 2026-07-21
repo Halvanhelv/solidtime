@@ -88,6 +88,7 @@ class ReportController extends Controller
         $properties = new ReportPropertiesDto;
         $properties->group = $request->getPropertyGroup();
         $properties->subGroup = $request->getPropertySubGroup();
+        $properties->subSubGroup = $request->getPropertySubSubGroup();
         $properties->historyGroup = $request->getPropertyHistoryGroup();
         $properties->start = $request->getPropertyStart();
         $properties->end = $request->getPropertyEnd();

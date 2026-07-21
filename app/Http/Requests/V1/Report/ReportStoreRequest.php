@@ -153,6 +153,19 @@ class ReportStoreRequest extends BaseFormRequest
                 'required',
                 Rule::enum(TimeEntryAggregationType::class),
             ],
+            // Optional third grouping level. Must differ from group and sub_group.
+            'properties.sub_sub_group' => [
+                'nullable',
+                Rule::enum(TimeEntryAggregationType::class),
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+                    if ($value === $this->input('properties.group') || $value === $this->input('properties.sub_group')) {
+                        $fail('The three grouping levels must be different.');
+                    }
+                },
+            ],
             'properties.history_group' => [
                 'required',
                 Rule::enum(TimeEntryAggregationTypeInterval::class),
@@ -248,6 +261,13 @@ class ReportStoreRequest extends BaseFormRequest
     public function getPropertySubGroup(): TimeEntryAggregationType
     {
         return TimeEntryAggregationType::from($this->input('properties.sub_group'));
+    }
+
+    public function getPropertySubSubGroup(): ?TimeEntryAggregationType
+    {
+        $value = $this->input('properties.sub_sub_group');
+
+        return $value !== null && $value !== '' ? TimeEntryAggregationType::from($value) : null;
     }
 
     public function getPropertyHistoryGroup(): TimeEntryAggregationTypeInterval

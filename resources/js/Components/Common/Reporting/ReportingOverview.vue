@@ -238,6 +238,7 @@ const reportProperties = computed(() => {
         // whenever subGroup is null (see template), so this branch is only
         // reachable with a real second dimension selected.
         sub_group: subGroup.value as GroupingOption,
+        sub_sub_group: subSubGroup.value ?? undefined,
         history_group: getOptimalGroupingOption(startDate.value, endDate.value),
     } as CreateReportBodyProperties;
 });

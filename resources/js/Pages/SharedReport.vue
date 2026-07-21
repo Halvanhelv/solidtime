@@ -140,28 +140,43 @@ const groupedPieChartData = computed(() => {
     );
 });
 
-const tableData = computed(() => {
-    return aggregatedTableTimeEntries.value?.grouped_data?.map((entry) => {
-        return {
+// The generated response type only models two nesting levels, so use a local
+// structural type to recurse to any depth (the backend now returns three).
+type SharedGroupedEntry = {
+    seconds: number;
+    cost: number | null;
+    description: string | null | undefined;
+    grouped_type?: string | null;
+    grouped_data?: SharedGroupedEntry[] | null;
+};
+
+type SharedTableRow = {
+    seconds: number;
+    cost: number | null;
+    description: string;
+    grouped_data: SharedTableRow[];
+};
+
+function mapSharedGroupedData(
+    entries: SharedGroupedEntry[] | null | undefined,
+    groupedType: string | null | undefined
+): SharedTableRow[] {
+    return (
+        entries?.map((entry) => ({
             seconds: entry.seconds,
             cost: entry.cost,
-            description:
-                entry.description ??
-                emptyPlaceholder[aggregatedTableTimeEntries.value?.grouped_type ?? 'project'] ??
-                '',
-            grouped_data:
-                entry.grouped_data?.map((el) => {
-                    return {
-                        seconds: el.seconds,
-                        cost: el.cost,
-                        description:
-                            el.description ??
-                            emptyPlaceholder[entry.grouped_type ?? 'project'] ??
-                            '',
-                    };
-                }) ?? [],
-        };
-    });
+            description: entry.description ?? emptyPlaceholder[groupedType ?? 'project'] ?? '',
+            grouped_data: mapSharedGroupedData(entry.grouped_data, entry.grouped_type),
+        })) ?? []
+    );
+}
+
+const tableData = computed(() => {
+    const root = aggregatedTableTimeEntries.value;
+    return mapSharedGroupedData(
+        root?.grouped_data as SharedGroupedEntry[] | null | undefined,
+        root?.grouped_type
+    );
 });
 
 const { groupByOptions } = useReportingStore();
