@@ -115,5 +115,7 @@ accessories:
 aliases:
   ssh: web exec --interactive --reuse "bash"
   logs: web logs -f
+  console: web exec --interactive --reuse "php artisan tinker"
   tinker: web exec --interactive --reuse "php artisan tinker"
+  dbc: accessory exec database --interactive --reuse "psql -U solidtime -d solidtime"
   migrate: web exec --reuse "php artisan migrate --force"
