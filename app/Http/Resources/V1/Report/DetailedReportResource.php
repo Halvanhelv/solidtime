@@ -38,6 +38,8 @@ class DetailedReportResource extends BaseResource
                 'group' => $this->resource->properties->group->value,
                 /** @var string $sub_group Type of second grouping */
                 'sub_group' => $this->resource->properties->subGroup->value,
+                /** @var string|null $sub_sub_group Type of optional third grouping */
+                'sub_sub_group' => $this->resource->properties->subSubGroup?->value,
                 /** @var string $history_group Type of grouping of the historic aggregation (time chart) */
                 'history_group' => $this->resource->properties->historyGroup->value,
                 /** @var string $start Start date of the report */
