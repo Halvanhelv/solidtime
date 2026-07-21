@@ -259,6 +259,7 @@ async function downloadExport(format: ExportFormat) {
                         ...filterParams.value,
                         group: group.value,
                         sub_group: subGroupValue,
+                        sub_sub_group: subSubGroup.value ?? undefined,
                         history_group: getOptimalGroupingOption(startDate.value, endDate.value),
                         format: format,
                     },
