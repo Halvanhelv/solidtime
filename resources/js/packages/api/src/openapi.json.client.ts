@@ -4110,6 +4110,24 @@ If the group parameters are all set to &#x60;null&#x60; or are all missing, the 
                     .optional(),
             },
             {
+                name: 'sub_sub_group',
+                type: 'Query',
+                schema: z
+                    .enum([
+                        'day',
+                        'week',
+                        'month',
+                        'year',
+                        'user',
+                        'project',
+                        'task',
+                        'client',
+                        'billable',
+                        'description',
+                    ])
+                    .optional(),
+            },
+            {
                 name: 'member_id',
                 type: 'Query',
                 schema: z.string().optional(),
@@ -4297,6 +4315,24 @@ If the group parameters are all set to &#x60;null&#x60; or are all missing, the 
                     'description',
                     'tag',
                 ]),
+            },
+            {
+                name: 'sub_sub_group',
+                type: 'Query',
+                schema: z
+                    .enum([
+                        'day',
+                        'week',
+                        'month',
+                        'year',
+                        'user',
+                        'project',
+                        'task',
+                        'client',
+                        'billable',
+                        'description',
+                    ])
+                    .optional(),
             },
             {
                 name: 'history_group',
