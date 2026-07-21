@@ -5,6 +5,7 @@ import {
     EllipsisVerticalIcon,
     LockClosedIcon,
 } from '@heroicons/vue/20/solid';
+import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/vue/16/solid';
 import { SaveIcon } from '@lucide/vue';
 import { getOrganizationCurrencyString } from '@/utils/money';
 import {
@@ -380,6 +381,43 @@ const tableData = computed<TableRow[] | undefined>(() => {
     const root = aggregatedTableTimeEntries.value;
     return root ? mapGroupedData(root.grouped_data ?? null, root.grouped_type ?? null) : undefined;
 });
+
+// Client-side sorting of the (already fully loaded) aggregated rows. Applied
+// recursively so every nesting level is sorted the same way. Null column keeps
+// the backend order.
+type ReportSortColumn = 'name' | 'duration';
+const sortColumn = ref<ReportSortColumn | null>(null);
+const sortDirection = ref<'asc' | 'desc'>('desc');
+
+function handleSort(column: ReportSortColumn) {
+    if (sortColumn.value === column) {
+        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortColumn.value = column;
+        // Duration defaults to largest-first, name to A→Z.
+        sortDirection.value = column === 'duration' ? 'desc' : 'asc';
+    }
+}
+
+function sortRows(rows: TableRow[]): TableRow[] {
+    const column = sortColumn.value;
+    if (column === null) {
+        return rows;
+    }
+    const direction = sortDirection.value === 'asc' ? 1 : -1;
+    return [...rows]
+        .sort((a, b) => {
+            if (column === 'name') {
+                return direction * (a.description ?? '').localeCompare(b.description ?? '');
+            }
+            return direction * (a.seconds - b.seconds);
+        })
+        .map((row) => ({ ...row, grouped_data: sortRows(row.grouped_data) }));
+}
+
+const sortedTableData = computed<TableRow[] | undefined>(() =>
+    tableData.value ? sortRows(tableData.value) : undefined
+);
 </script>
 
 <template>
@@ -581,9 +619,26 @@ const tableData = computed<TableRow[] | undefined>(() => {
                     :style="`grid-template-columns: 1fr 100px ${showBillableRate ? '150px' : ''}`">
                     <div
                         class="contents [&>*]:border-card-background-separator [&>*]:border-b [&>*]:bg-secondary [&>*]:pb-1.5 [&>*]:pt-1 text-text-tertiary text-sm">
-                        <div class="pl-6">Name</div>
-                        <div class="text-right" :class="!showBillableRate ? 'pr-6' : ''">
+                        <div
+                            class="pl-6 flex items-center gap-1 cursor-pointer select-none hover:text-text-primary transition-colors"
+                            @click="handleSort('name')">
+                            Name
+                            <ChevronDownIcon
+                                v-if="sortColumn === 'name' && sortDirection === 'desc'"
+                                class="w-3.5 h-3.5" />
+                            <ChevronUpIcon v-else-if="sortColumn === 'name'" class="w-3.5 h-3.5" />
+                        </div>
+                        <div
+                            class="text-right flex items-center justify-end gap-1 cursor-pointer select-none hover:text-text-primary transition-colors"
+                            :class="!showBillableRate ? 'pr-6' : ''"
+                            @click="handleSort('duration')">
                             Duration
+                            <ChevronDownIcon
+                                v-if="sortColumn === 'duration' && sortDirection === 'desc'"
+                                class="w-3.5 h-3.5" />
+                            <ChevronUpIcon
+                                v-else-if="sortColumn === 'duration'"
+                                class="w-3.5 h-3.5" />
                         </div>
                         <div v-if="showBillableRate" class="text-right pr-6">Cost</div>
                     </div>
@@ -593,7 +648,7 @@ const tableData = computed<TableRow[] | undefined>(() => {
                             aggregatedTableTimeEntries.grouped_data?.length > 0
                         ">
                         <ReportingRow
-                            v-for="entry in tableData"
+                            v-for="entry in sortedTableData"
                             :key="entry.description ?? 'none'"
                             :currency="getOrganizationCurrencyString()"
                             :type="aggregatedTableTimeEntries.grouped_type"
