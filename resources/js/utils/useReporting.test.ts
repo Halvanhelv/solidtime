@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { computed, ref } from 'vue';
 import { useNavVisibility } from '@/utils/navVisibility';
-import { useReportingStore } from './useReporting';
+import { nextDistinctOption, useReportingStore } from './useReporting';
 
 vi.mock('@/utils/navVisibility', () => ({
     useNavVisibility: vi.fn(),
@@ -53,9 +53,7 @@ describe('useReportingStore groupByOptions', () => {
         setActivePinia(createPinia());
         const store = useReportingStore();
         const values = store.groupByOptions.map((option) => option.value);
-        expect(values).toEqual(
-            expect.arrayContaining(['day', 'week', 'month', 'year'])
-        );
+        expect(values).toEqual(expect.arrayContaining(['day', 'week', 'month', 'year']));
     });
 });
 
@@ -69,9 +67,7 @@ describe('useReportingStore getNameForReportingRowEntry time labels', () => {
 
     it('formats a day key as a readable date', () => {
         const store = useReportingStore();
-        expect(store.getNameForReportingRowEntry('2024-01-15', 'day')).toBe(
-            'Mon, Jan 15, 2024'
-        );
+        expect(store.getNameForReportingRowEntry('2024-01-15', 'day')).toBe('Mon, Jan 15, 2024');
     });
 
     it('formats a week key as "Week of ..."', () => {
@@ -89,5 +85,14 @@ describe('useReportingStore getNameForReportingRowEntry time labels', () => {
     it('returns a year key unchanged', () => {
         const store = useReportingStore();
         expect(store.getNameForReportingRowEntry('2024', 'year')).toBe('2024');
+    });
+});
+
+describe('nextDistinctOption', () => {
+    it('returns the first option not already taken', () => {
+        expect(nextDistinctOption(['user', 'project'], ['user', 'project', 'task'])).toBe('task');
+    });
+    it('returns undefined when all options are taken', () => {
+        expect(nextDistinctOption(['user', 'project'], ['user', 'project'])).toBeUndefined();
     });
 });

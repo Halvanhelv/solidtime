@@ -30,6 +30,13 @@ export type GroupingOption =
     | 'month'
     | 'year';
 
+export function nextDistinctOption(
+    taken: (GroupingOption | null)[],
+    options: GroupingOption[]
+): GroupingOption | undefined {
+    return options.find((o) => !taken.includes(o));
+}
+
 export const useReportingStore = defineStore('reporting', () => {
     // Cache query composables to avoid creating new subscriptions on every call
     const { projects } = useProjectsQuery();
