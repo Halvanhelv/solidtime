@@ -186,9 +186,7 @@ const showBillableRate = computed(() => {
                     v-model="subSubGroup"
                     allow-none
                     :group-by-options="
-                        groupByOptions.filter(
-                            (el) => el.value !== group && el.value !== subGroup
-                        )
+                        groupByOptions.filter((el) => el.value !== group && el.value !== subGroup)
                     "></ReportingGroupBySelect>
             </template>
         </div>
