@@ -8,40 +8,77 @@ import {
 } from '@/packages/ui/src/utils/time';
 import { formatCents } from '@/packages/ui/src/utils/money';
 import { getOrganizationCurrencyString } from '@/utils/money';
-import { type GroupingOption, useReportingStore } from '@/utils/useReporting';
-import { getCurrentMembershipId, getCurrentOrganizationId, getCurrentRole } from '@/utils/useUser';
 import {
-    api,
+    type GroupingOption,
+    isTerminalGroupOption,
+    nextDistinctOption,
+    useReportingStore,
+} from '@/utils/useReporting';
+import { getCurrentMembershipId, getCurrentRole } from '@/utils/useUser';
+import {
     type AggregatedTimeEntries,
     type AggregatedTimeEntriesQueryParams,
     type Organization,
 } from '@/packages/api/src';
-import { useQuery } from '@tanstack/vue-query';
+import { useAggregatedTimeEntriesQuery } from '@/utils/useAggregatedTimeEntriesQuery';
 import { useStorage } from '@vueuse/core';
 import { computed, inject, type ComputedRef, watch } from 'vue';
 
 const organization = inject<ComputedRef<Organization>>('organization');
 
 const group = useStorage<GroupingOption>('dashboard-reporting-group', 'project');
-const subGroup = useStorage<GroupingOption>('dashboard-reporting-sub-group', 'task');
+// vueuse's useStorage removes the key and reverts to its default when the ref is
+// set to null, which would make the "(None)" state impossible to keep for the
+// sub-group selects. Persist a sentinel string instead and expose a null-based
+// computed at the boundary so the rest of the component keeps using `null`.
+const SUB_GROUP_NONE = '__none__';
+const subGroupStorage = useStorage<GroupingOption | typeof SUB_GROUP_NONE>(
+    'dashboard-reporting-sub-group',
+    'task'
+);
+const subSubGroupStorage = useStorage<GroupingOption | typeof SUB_GROUP_NONE>(
+    'dashboard-reporting-sub-sub-group',
+    SUB_GROUP_NONE
+);
+const subGroup = computed<GroupingOption | null>({
+    get: () => (subGroupStorage.value === SUB_GROUP_NONE ? null : subGroupStorage.value),
+    set: (value) => {
+        subGroupStorage.value = value ?? SUB_GROUP_NONE;
+    },
+});
+const subSubGroup = computed<GroupingOption | null>({
+    get: () => (subSubGroupStorage.value === SUB_GROUP_NONE ? null : subSubGroupStorage.value),
+    set: (value) => {
+        subSubGroupStorage.value = value ?? SUB_GROUP_NONE;
+    },
+});
 
 const reportingStore = useReportingStore();
 const { groupByOptions, getNameForReportingRowEntry } = reportingStore;
 
+// Keep group, sub-group and sub-sub-group distinct, Clockify-style: slot 2 cannot
+// exist under a terminal slot 1 (e.g. 'description'), and slot 3 cannot exist
+// without slot 2 or under a terminal slot 2.
 watch(
-    group,
+    [group, subGroup],
     () => {
-        if (group.value === subGroup.value) {
-            const fallbackOption = groupByOptions.find((el) => el.value !== group.value);
-            if (fallbackOption?.value) {
-                subGroup.value = fallbackOption.value;
-            }
+        const options = groupByOptions.map((o) => o.value);
+        if (isTerminalGroupOption(group.value)) {
+            subGroup.value = null;
+        } else if (subGroup.value === group.value) {
+            subGroup.value = nextDistinctOption([group.value], options) ?? null;
+        }
+        if (!subGroup.value || isTerminalGroupOption(subGroup.value)) {
+            subSubGroup.value = null;
+        } else if (
+            subSubGroup.value &&
+            (subSubGroup.value === group.value || subSubGroup.value === subGroup.value)
+        ) {
+            subSubGroup.value = nextDistinctOption([group.value, subGroup.value], options) ?? null;
         }
     },
     { immediate: true }
 );
-
-const organizationId = computed(() => getCurrentOrganizationId());
 
 const weekStartUtc = computed(() => {
     return getLocalizedDayJs(getDayJsInstance()().format())
@@ -60,59 +97,61 @@ const queryParams = computed<AggregatedTimeEntriesQueryParams>(() => {
         start: weekStartUtc.value,
         end: weekEndUtc.value,
         group: group.value,
-        sub_group: subGroup.value,
+        sub_group: subGroup.value ?? undefined,
+        sub_sub_group: subSubGroup.value ?? undefined,
         member_id: getCurrentRole() === 'employee' ? getCurrentMembershipId() : undefined,
     };
 });
 
-const { data: reportingResponse, isLoading } = useQuery({
-    queryKey: [
-        'dashboardThisWeekReporting',
-        organizationId,
-        weekStartUtc,
-        weekEndUtc,
-        group,
-        subGroup,
-    ],
-    queryFn: () => {
-        return api.getAggregatedTimeEntries({
-            params: {
-                organization: organizationId.value!,
-            },
-            queries: queryParams.value,
-        });
-    },
-    enabled: computed(() => !!organizationId.value),
-});
+// Shared helper keeps the previous result on screen while refetching (placeholderData
+// + staleTime), so changing a grouping slot swaps the table in place instead of
+// flashing the "Loading" / "No time entries" state between requests.
+const { data: reportingResponse, isLoading } = useAggregatedTimeEntriesQuery(
+    'dashboard-this-week',
+    queryParams
+);
 
 const aggregatedTableTimeEntries = computed<AggregatedTimeEntries | null>(() => {
     return (reportingResponse.value?.data as AggregatedTimeEntries | undefined) ?? null;
 });
 
-const tableData = computed(() => {
+// Structural (not the generated OpenAPI response) type: the response schema only
+// spells out grouped_data recursion up to the depth that existed before the third
+// grouping level, but the backend can now nest one level deeper. Declaring our own
+// self-referential shape lets the mapper recurse to any depth while remaining
+// structurally assignable from the generated response type.
+interface GroupedDataEntry {
+    key: string | null;
+    seconds: number;
+    cost: number | null;
+    grouped_type?: string | null;
+    grouped_data?: GroupedDataEntry[] | null;
+}
+
+type TableRow = {
+    seconds: number;
+    cost: number | null;
+    description: string | null | undefined;
+    grouped_data: TableRow[];
+};
+
+function mapGroupedData(
+    entries: GroupedDataEntry[] | null | undefined,
+    type: string | null
+): TableRow[] {
     return (
-        aggregatedTableTimeEntries.value?.grouped_data?.map((entry) => {
-            return {
-                seconds: entry.seconds,
-                cost: entry.cost,
-                description: getNameForReportingRowEntry(
-                    entry.key,
-                    aggregatedTableTimeEntries.value?.grouped_type ?? null
-                ),
-                grouped_data:
-                    entry.grouped_data?.map((el) => {
-                        return {
-                            seconds: el.seconds,
-                            cost: el.cost,
-                            description: getNameForReportingRowEntry(
-                                el.key,
-                                entry.grouped_type ?? null
-                            ),
-                        };
-                    }) ?? [],
-            };
-        }) ?? []
+        entries?.map((entry) => ({
+            seconds: entry.seconds,
+            cost: entry.cost,
+            description: getNameForReportingRowEntry(entry.key, type),
+            grouped_data: mapGroupedData(entry.grouped_data ?? null, entry.grouped_type ?? null),
+        })) ?? []
     );
+}
+
+const tableData = computed<TableRow[]>(() => {
+    const root = aggregatedTableTimeEntries.value;
+    return root ? mapGroupedData(root.grouped_data ?? null, root.grouped_type ?? null) : [];
 });
 
 const showBillableRate = computed(() => {
@@ -130,12 +169,28 @@ const showBillableRate = computed(() => {
             <ReportingGroupBySelect
                 v-model="group"
                 :group-by-options="groupByOptions"></ReportingGroupBySelect>
-            <span>and</span>
-            <ReportingGroupBySelect
-                v-model="subGroup"
-                :group-by-options="
-                    groupByOptions.filter((el) => el.value !== group)
-                "></ReportingGroupBySelect>
+            <template v-if="!isTerminalGroupOption(group)">
+                <span>and</span>
+                <ReportingGroupBySelect
+                    v-model="subGroup"
+                    allow-none
+                    :group-by-options="
+                        groupByOptions.filter(
+                            (el) => el.value !== group && el.value !== subSubGroup
+                        )
+                    "></ReportingGroupBySelect>
+            </template>
+            <template v-if="subGroup && !isTerminalGroupOption(subGroup)">
+                <span>and</span>
+                <ReportingGroupBySelect
+                    v-model="subSubGroup"
+                    allow-none
+                    :group-by-options="
+                        groupByOptions.filter(
+                            (el) => el.value !== group && el.value !== subGroup
+                        )
+                    "></ReportingGroupBySelect>
+            </template>
         </div>
 
         <div
