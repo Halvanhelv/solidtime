@@ -14,29 +14,26 @@ use Illuminate\Database\Eloquent\Model;
  */
 class TimeEntriesDetailedCsvExport extends CsvExport
 {
-    public const array HEADER = [
-        'Description',
-        'Task',
-        'Project',
-        'Client',
-        'User',
-        'Start',
-        'End',
-        'Duration',
-        'Duration (decimal)',
-        'Billable',
-        // 'Tags', // temporarily disabled for all exports
-    ];
-
     protected const string CARBON_FORMAT = 'Y-m-d H:i:s';
 
     private string $timezone;
 
-    public function __construct(string $disk, string $folderPath, string $filename, Builder $builder, int $chunk, string $timezone)
+    private bool $includeTags;
+
+    public function __construct(string $disk, string $folderPath, string $filename, Builder $builder, int $chunk, string $timezone, bool $includeTags)
     {
         parent::__construct($disk, $folderPath, $filename, $builder, $chunk);
 
         $this->timezone = $timezone;
+        $this->includeTags = $includeTags;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function header(): array
+    {
+        return DetailedExportColumns::labels($this->includeTags);
     }
 
     /**
@@ -47,18 +44,23 @@ class TimeEntriesDetailedCsvExport extends CsvExport
         $interval = app(IntervalService::class);
         $duration = $model->getDuration();
 
-        return [
-            'Description' => $model->description,
-            'Task' => $model->task?->name,
-            'Project' => $model->project?->name,
-            'Client' => $model->client?->name,
-            'User' => $model->user->name,
-            'Start' => $model->start->timezone($this->timezone),
-            'End' => $model->end->timezone($this->timezone),
-            'Duration' => $duration !== null ? $interval->format($model->getDuration()) : null,
-            'Duration (decimal)' => $duration?->totalHours,
-            'Billable' => $model->billable ? 'Yes' : 'No',
-            // 'Tags' => $model->tagsRelation->pluck('name')->implode(', '), // temporarily disabled for all exports
-        ];
+        $row = [];
+        foreach (DetailedExportColumns::for($this->includeTags) as $column) {
+            $row[$column->value] = match ($column) {
+                DetailedExportColumn::Description => $model->description,
+                DetailedExportColumn::Task => $model->task?->name,
+                DetailedExportColumn::Project => $model->project?->name,
+                DetailedExportColumn::Client => $model->client?->name,
+                DetailedExportColumn::User => $model->user->name,
+                DetailedExportColumn::Start => $model->start->timezone($this->timezone),
+                DetailedExportColumn::End => $model->end?->timezone($this->timezone),
+                DetailedExportColumn::Duration => $duration !== null ? $interval->format($duration) : null,
+                DetailedExportColumn::DurationDecimal => $duration?->totalHours,
+                DetailedExportColumn::Billable => $model->billable ? 'Yes' : 'No',
+                DetailedExportColumn::Tags => $model->tagsRelation->pluck('name')->implode(', '),
+            };
+        }
+
+        return $row;
     }
 }

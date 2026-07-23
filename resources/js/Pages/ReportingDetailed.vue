@@ -10,12 +10,13 @@ import {
     ArrowDownTrayIcon,
     LockClosedIcon,
 } from '@heroicons/vue/20/solid';
-import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/vue/16/solid';
+import { ChevronUpIcon, ChevronDownIcon, CheckIcon } from '@heroicons/vue/16/solid';
 import Pagination from '@/Components/Common/Pagination.vue';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/packages/ui/src';
 import { SecondaryButton } from '@/packages/ui/src';
@@ -32,7 +33,7 @@ import {
 } from '@/packages/api/src';
 import { useTagsQuery } from '@/utils/useTagsQuery';
 import { useTagsStore } from '@/utils/useTags';
-import { useSessionStorage, useUrlSearchParams } from '@vueuse/core';
+import { useSessionStorage, useStorage, useUrlSearchParams } from '@vueuse/core';
 import TimeEntryRow from '@/packages/ui/src/TimeEntry/TimeEntryRow.vue';
 import { useCurrentTimeEntryStore } from '@/utils/useCurrentTimeEntry';
 import { useProjectsQuery } from '@/utils/useProjectsQuery';
@@ -246,6 +247,7 @@ const showExportModal = ref(false);
 const exportUrl = ref<string | null>(null);
 const showPremiumModal = ref(false);
 const exportLoading = ref(false);
+const includeTagsInExport = useStorage('reporting-export-include-tags', true);
 
 function triggerExport(format: ExportFormat) {
     if (format === 'pdf' && !isAllowedToPerformPremiumAction()) {
@@ -325,6 +327,7 @@ async function downloadExport(format: ExportFormat) {
                     queries: {
                         ...getFilterAttributes(),
                         format: format,
+                        include_tags: includeTagsInExport.value ? 'true' : 'false',
                     },
                 }),
             'Export successful',
@@ -360,6 +363,23 @@ async function downloadExport(format: ExportFormat) {
                         </SecondaryButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                            class="flex items-center justify-between gap-2 font-medium"
+                            :class="
+                                includeTagsInExport
+                                    ? 'bg-accent-400/10 text-accent-300 font-semibold'
+                                    : 'text-text-secondary'
+                            "
+                            @select="
+                                (e: Event) => {
+                                    e.preventDefault();
+                                    includeTagsInExport = !includeTagsInExport;
+                                }
+                            ">
+                            <span>Include tags</span>
+                            <CheckIcon v-if="includeTagsInExport" class="w-4 h-4" />
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem @click="triggerExport('pdf')">
                             <div class="flex items-center space-x-2">
                                 <span>Export as PDF</span>
@@ -389,6 +409,23 @@ async function downloadExport(format: ExportFormat) {
                     </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                        class="flex items-center justify-between gap-2 font-medium"
+                        :class="
+                            includeTagsInExport
+                                ? 'bg-accent text-accent-foreground'
+                                : 'text-text-secondary'
+                        "
+                        @select="
+                            (e: Event) => {
+                                e.preventDefault();
+                                includeTagsInExport = !includeTagsInExport;
+                            }
+                        ">
+                        <span>Include tags</span>
+                        <CheckIcon v-if="includeTagsInExport" class="w-4 h-4" />
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem @click="triggerExport('pdf')">
                         <div class="flex items-center space-x-2">
                             <span>Export as PDF</span>

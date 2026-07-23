@@ -254,6 +254,7 @@ class TimeEntryController extends Controller
         $canAccessPremiumFeatures = $this->canAccessPremiumFeatures($organization);
         $debug = $request->getDebug();
         $format = $request->getFormatValue();
+        $includeTags = $request->getIncludeTags();
         if ($format === ExportFormat::PDF && ! $canAccessPremiumFeatures) {
             throw new FeatureIsNotAvailableInFreePlanApiException;
         }
@@ -276,7 +277,7 @@ class TimeEntryController extends Controller
         $path = $folderPath.'/'.$filename;
         $localizationService = LocalizationService::forOrganization($organization);
         if ($format === ExportFormat::CSV) {
-            $export = new TimeEntriesDetailedCsvExport(config('filesystems.private'), $folderPath, $filename, $timeEntriesQuery, 1000, $timezone);
+            $export = new TimeEntriesDetailedCsvExport(config('filesystems.private'), $folderPath, $filename, $timeEntriesQuery, 1000, $timezone, $includeTags);
             $export->export();
         } elseif ($format === ExportFormat::PDF) {
             if (config('services.gotenberg.url') === null && ! $debug) {
@@ -312,6 +313,7 @@ class TimeEntryController extends Controller
                 'end' => $request->getEnd()->timezone($timezone),
                 'localization' => $localizationService,
                 'showBillableRate' => $showBillableRate,
+                'includeTags' => $includeTags,
             ]);
             $footerViewFile = file_get_contents(resource_path('views/reports/time-entry-index/pdf-footer.blade.php'));
             if ($footerViewFile === false) {
@@ -346,7 +348,7 @@ class TimeEntryController extends Controller
                 ->putFileAs($folderPath, new File($tempFolder->path($filenameTemp)), $filename);
         } else {
             Excel::store(
-                new TimeEntriesDetailedExport($timeEntriesQuery, $format, $timezone, $localizationService),
+                new TimeEntriesDetailedExport($timeEntriesQuery, $format, $timezone, $localizationService, $includeTags),
                 $path,
                 config('filesystems.private'),
                 $format->getExportPackageType(),

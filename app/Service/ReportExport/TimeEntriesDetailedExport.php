@@ -8,6 +8,7 @@ use App\Enums\ExportFormat;
 use App\Models\TimeEntry;
 use App\Service\LocalizationService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use LogicException;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\FromQuery;
@@ -16,9 +17,9 @@ use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
-use PhpOffice\PhpSpreadsheet\Style\Style;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
@@ -39,15 +40,18 @@ class TimeEntriesDetailedExport implements FromQuery, ShouldAutoSize, WithColumn
 
     private LocalizationService $localizationService;
 
+    private bool $includeTags;
+
     /**
      * @param  Builder<TimeEntry>  $builder
      */
-    public function __construct(Builder $builder, ExportFormat $exportFormat, string $timezone, LocalizationService $localizationService)
+    public function __construct(Builder $builder, ExportFormat $exportFormat, string $timezone, LocalizationService $localizationService, bool $includeTags)
     {
         $this->builder = $builder;
         $this->exportFormat = $exportFormat;
         $this->timezone = $timezone;
         $this->localizationService = $localizationService;
+        $this->includeTags = $includeTags;
     }
 
     /**
@@ -63,20 +67,25 @@ class TimeEntriesDetailedExport implements FromQuery, ShouldAutoSize, WithColumn
      */
     public function columnFormats(): array
     {
-        if ($this->exportFormat === ExportFormat::XLSX) {
-            return [
-                'F' => 'yyyy-mm-dd hh:mm:ss',
-                'G' => 'yyyy-mm-dd hh:mm:ss',
-                'I' => NumberFormat::FORMAT_NUMBER_00,
-            ];
-        } elseif ($this->exportFormat === ExportFormat::ODS) {
-            return [
-                'I' => NumberFormat::FORMAT_NUMBER_00,
-            ];
-        } else {
+        if ($this->exportFormat !== ExportFormat::XLSX && $this->exportFormat !== ExportFormat::ODS) {
             throw new LogicException('Unsupported export format.');
         }
 
+        $formats = [];
+        foreach (DetailedExportColumns::for($this->includeTags) as $index => $column) {
+            $letter = Coordinate::stringFromColumnIndex($index + 1);
+            $format = match ($column) {
+                DetailedExportColumn::Start,
+                DetailedExportColumn::End => $this->exportFormat === ExportFormat::XLSX ? 'yyyy-mm-dd hh:mm:ss' : null,
+                DetailedExportColumn::DurationDecimal => NumberFormat::FORMAT_NUMBER_00,
+                default => null,
+            };
+            if ($format !== null) {
+                $formats[$letter] = $format;
+            }
+        }
+
+        return $formats;
     }
 
     /**
@@ -91,23 +100,11 @@ class TimeEntriesDetailedExport implements FromQuery, ShouldAutoSize, WithColumn
     }
 
     /**
-     * @return string[]
+     * @return list<string>
      */
     public function headings(): array
     {
-        return [
-            'Description',
-            'Task',
-            'Project',
-            'Client',
-            'User',
-            'Start',
-            'End',
-            'Duration',
-            'Duration (decimal)',
-            'Billable',
-            // 'Tags', // temporarily disabled for all exports
-        ];
+        return DetailedExportColumns::labels($this->includeTags);
     }
 
     /**
@@ -116,38 +113,36 @@ class TimeEntriesDetailedExport implements FromQuery, ShouldAutoSize, WithColumn
      */
     public function map($model): array
     {
-        $duration = $model->getDuration();
-
-        if ($this->exportFormat === ExportFormat::XLSX) {
-            return [
-                $model->description,
-                $model->task?->name,
-                $model->project?->name,
-                $model->client?->name,
-                $model->user->name,
-                Date::dateTimeToExcel($model->start->timezone($this->timezone)),
-                $model->end !== null ? Date::dateTimeToExcel($model->end->timezone($this->timezone)) : null,
-                $duration !== null ? $this->localizationService->formatInterval($duration) : null,
-                $duration?->totalHours,
-                $model->billable ? 'Yes' : 'No',
-                // $model->tagsRelation->pluck('name')->implode(', '), // temporarily disabled for all exports
-            ];
-        } elseif ($this->exportFormat === ExportFormat::ODS) {
-            return [
-                $model->description,
-                $model->task?->name,
-                $model->project?->name,
-                $model->client?->name,
-                $model->user->name,
-                $model->start->timezone($this->timezone)->format('Y-m-d H:i:s'),
-                $model->end?->timezone($this->timezone)?->format('Y-m-d H:i:s'),
-                $duration !== null ? $this->localizationService->formatInterval($duration) : null,
-                $duration?->totalHours,
-                $model->billable ? 'Yes' : 'No',
-                // $model->tagsRelation->pluck('name')->implode(', '), // temporarily disabled for all exports
-            ];
-        } else {
+        if ($this->exportFormat !== ExportFormat::XLSX && $this->exportFormat !== ExportFormat::ODS) {
             throw new LogicException('Unsupported export format.');
         }
+
+        $duration = $model->getDuration();
+
+        $row = [];
+        foreach (DetailedExportColumns::for($this->includeTags) as $column) {
+            $row[] = match ($column) {
+                DetailedExportColumn::Description => $model->description,
+                DetailedExportColumn::Task => $model->task?->name,
+                DetailedExportColumn::Project => $model->project?->name,
+                DetailedExportColumn::Client => $model->client?->name,
+                DetailedExportColumn::User => $model->user->name,
+                DetailedExportColumn::Start => $this->formatDateTime($model->start->timezone($this->timezone)),
+                DetailedExportColumn::End => $model->end !== null ? $this->formatDateTime($model->end->timezone($this->timezone)) : null,
+                DetailedExportColumn::Duration => $duration !== null ? $this->localizationService->formatInterval($duration) : null,
+                DetailedExportColumn::DurationDecimal => $duration?->totalHours,
+                DetailedExportColumn::Billable => $model->billable ? 'Yes' : 'No',
+                DetailedExportColumn::Tags => $model->tagsRelation->pluck('name')->implode(', '),
+            };
+        }
+
+        return $row;
+    }
+
+    private function formatDateTime(Carbon $dateTime): string|float
+    {
+        return $this->exportFormat === ExportFormat::XLSX
+            ? Date::dateTimeToExcel($dateTime)
+            : $dateTime->format('Y-m-d H:i:s');
     }
 }

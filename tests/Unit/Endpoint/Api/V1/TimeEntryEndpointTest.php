@@ -1100,6 +1100,106 @@ class TimeEntryEndpointTest extends ApiEndpointTestAbstract
         $this->assertStringContainsString($expectedBillableFigure, $html);
     }
 
+    public function test_index_export_endpoint_pdf_includes_tags_column_by_default(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+        $this->actAsOrganizationWithSubscription();
+        Config::set('services.gotenberg.url', null);
+        $timeEntry = TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->billable()->startWithDuration(Carbon::now()->subHours(2), 3600)->withTags($data->organization)->create();
+        $tagNames = TimeEntry::query()->with('tagsRelation')->findOrFail($timeEntry->getKey())->tagsRelation->pluck('name');
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.index-export', [
+            $data->organization->getKey(),
+            'format' => ExportFormat::PDF,
+            'start' => Carbon::now()->startOfYear()->toIso8601ZuluString(),
+            'end' => Carbon::now()->endOfYear()->toIso8601ZuluString(),
+            'debug' => 'true',
+        ]));
+
+        // Assert
+        $this->assertResponseCode($response, 200);
+        $html = $response->json('html');
+        $this->assertStringContainsString('Tags', $html);
+        foreach ($tagNames as $tagName) {
+            $this->assertStringContainsString($tagName, $html);
+        }
+    }
+
+    public function test_index_export_endpoint_pdf_excludes_tags_column_when_include_tags_is_false(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+        $this->actAsOrganizationWithSubscription();
+        Config::set('services.gotenberg.url', null);
+        TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->billable()->startWithDuration(Carbon::now()->subHours(2), 3600)->withTags($data->organization)->create();
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.index-export', [
+            $data->organization->getKey(),
+            'format' => ExportFormat::PDF,
+            'start' => Carbon::now()->startOfYear()->toIso8601ZuluString(),
+            'end' => Carbon::now()->endOfYear()->toIso8601ZuluString(),
+            'include_tags' => 'false',
+            'debug' => 'true',
+        ]));
+
+        // Assert
+        $this->assertResponseCode($response, 200);
+        $html = $response->json('html');
+        $this->assertStringNotContainsString('<th>Tags</th>', $html);
+    }
+
+    public function test_index_export_endpoint_csv_accepts_include_tags_param(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->withTags($data->organization)->create();
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.index-export', [
+            $data->organization->getKey(),
+            'format' => ExportFormat::CSV,
+            'start' => Carbon::now()->startOfYear()->toIso8601ZuluString(),
+            'end' => Carbon::now()->endOfYear()->toIso8601ZuluString(),
+            'include_tags' => 'true',
+        ]));
+
+        // Assert
+        $this->assertResponseCode($response, 200);
+    }
+
+    public function test_index_export_endpoint_rejects_invalid_include_tags_value(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:view:all',
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act
+        $response = $this->getJson(route('api.v1.time-entries.index-export', [
+            $data->organization->getKey(),
+            'format' => ExportFormat::CSV,
+            'start' => Carbon::now()->startOfYear()->toIso8601ZuluString(),
+            'end' => Carbon::now()->endOfYear()->toIso8601ZuluString(),
+            'include_tags' => 'yes',
+        ]));
+
+        // Assert
+        $this->assertResponseCode($response, 422);
+    }
+
     public function test_aggregate_export_endpoint_in_debug_mode_returns_rendered_html_without_calling_gotenberg(): void
     {
         // Arrange

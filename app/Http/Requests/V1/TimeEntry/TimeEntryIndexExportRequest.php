@@ -170,6 +170,11 @@ class TimeEntryIndexExportRequest extends TimeEntryIndexRequest
                 'string',
                 'in:true,false',
             ],
+            // Include a "Tags" column (comma-separated tag names) in the export (default: true)
+            'include_tags' => [
+                'string',
+                'in:true,false',
+            ],
             // Rounding type defined where the end of each time entry should be rounded to. For example: nearest rounds the end to the nearest x minutes group. Rounding per time entry is activated if `rounding_type` and `rounding_minutes` is not null.
             'rounding_type' => [
                 'nullable',
@@ -200,6 +205,11 @@ class TimeEntryIndexExportRequest extends TimeEntryIndexRequest
     public function getDebug(): bool
     {
         return $this->input('debug', 'false') === 'true';
+    }
+
+    public function getIncludeTags(): bool
+    {
+        return $this->input('include_tags', 'true') === 'true';
     }
 
     public function getStart(): Carbon

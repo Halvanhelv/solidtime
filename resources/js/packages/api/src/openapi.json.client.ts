@@ -4518,6 +4518,11 @@ If the group parameters are all set to &#x60;null&#x60; or are all missing, the 
                 schema: z.enum(['true', 'false']).optional(),
             },
             {
+                name: 'include_tags',
+                type: 'Query',
+                schema: z.enum(['true', 'false']).optional(),
+            },
+            {
                 name: 'rounding_type',
                 type: 'Query',
                 schema: z.enum(['up', 'down', 'nearest']).optional(),

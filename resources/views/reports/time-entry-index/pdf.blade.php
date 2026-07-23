@@ -155,7 +155,9 @@
                 <th style="text-align: center;">Time</th>
                 <th>Duration</th>
                 <th>Billable</th>
-                {{-- <th>Tags</th> temporarily disabled for all exports --}}
+                @if($includeTags ?? true)
+                    <th>Tags</th>
+                @endif
             </tr>
             </thead>
             <tbody>
@@ -189,7 +191,9 @@
                         {{ $localization->formatIntervalForReporting($timeEntry->getDuration()) }}
                     </td>
                     <td style="overflow-wrap: break-word;">{{ $timeEntry->billable ? 'Yes' : 'No' }}</td>
-                    {{-- <td>{{ count($timeEntry->tagsRelation) === 0 ? '-' : $timeEntry->tagsRelation->implode('name', ', ') }}</td> temporarily disabled for all exports --}}
+                    @if($includeTags ?? true)
+                        <td>{{ count($timeEntry->tagsRelation) === 0 ? '-' : $timeEntry->tagsRelation->implode('name', ', ') }}</td>
+                    @endif
                 </tr>
             @endforeach
             </tbody>

@@ -61,6 +61,18 @@ abstract class CsvExport
     abstract public function mapRow(Model $model): array;
 
     /**
+     * The ordered header labels for this export. Subclasses whose columns are
+     * dynamic (e.g. an optional column) override this; the default returns the
+     * static HEADER constant.
+     *
+     * @return list<string>
+     */
+    public function header(): array
+    {
+        return array_values(static::HEADER);
+    }
+
+    /**
      * @throws CannotInsertRecord
      * @throws Exception
      * @throws UnavailableStream
@@ -72,7 +84,7 @@ abstract class CsvExport
         $writer->setDelimiter(',');
         $writer->setEnclosure('"');
         $writer->setEscape('');
-        $writer->insertOne(static::HEADER);
+        $writer->insertOne($this->header());
 
         $this->builder->chunk($this->chunk, function (Collection $models) use ($writer): void {
             /** @var T $model */
@@ -115,7 +127,7 @@ abstract class CsvExport
      */
     private function validateRow(array $row): void
     {
-        if (array_keys($row) !== static::HEADER) {
+        if (array_keys($row) !== $this->header()) {
             throw new \LogicException('Invalid row');
         }
     }
