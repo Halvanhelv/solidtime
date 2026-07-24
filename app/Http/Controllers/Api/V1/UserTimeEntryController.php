@@ -8,8 +8,8 @@ use App\Http\Resources\V1\TimeEntry\TimeEntryResource;
 use App\Models\Organization;
 use App\Models\TimeEntry;
 use App\Models\User;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 
 class UserTimeEntryController extends Controller
@@ -21,7 +21,7 @@ class UserTimeEntryController extends Controller
      *
      * @operationId getMyActiveTimeEntry
      */
-    public function myActive(): JsonResource
+    public function myActive(): JsonResource|Response
     {
         $user = $this->user();
 
@@ -41,8 +41,10 @@ class UserTimeEntryController extends Controller
 
         if ($activeTimeEntry !== null) {
             return new TimeEntryResource($activeTimeEntry);
-        } else {
-            throw new ModelNotFoundException('No active time entry');
         }
+
+        // No running timer is a normal state, not an error. Return 204 No Content
+        // so clients can treat "no active timer" as an empty result instead of a 404.
+        return response()->noContent();
     }
 }

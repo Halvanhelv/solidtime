@@ -204,6 +204,7 @@ return [
     'task_belongs_to_project' => 'The :attribute is not part of the given project.',
     'project_name_already_exists' => 'A project with the same name and client already exists in the organization.',
     'overlapping_time_entry' => 'Overlapping time entries are not allowed.',
+    'time_entry_max_duration' => 'The time entry duration may not exceed :hours hours.',
     'tag_name_already_exists' => 'A tag with the same name already exists in the organization.',
     'client_name_already_exists' => 'A client with the same name already exists in the organization.',
     'task_name_already_exists' => 'A task with the same name already exists in the project.',

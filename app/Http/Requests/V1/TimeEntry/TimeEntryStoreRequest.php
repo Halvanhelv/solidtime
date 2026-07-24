@@ -10,6 +10,7 @@ use App\Models\Organization;
 use App\Models\Project;
 use App\Models\Tag;
 use App\Models\Task;
+use App\Rules\MaxTimeEntryDuration;
 use App\Service\PermissionStore;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Builder;
@@ -80,6 +81,7 @@ class TimeEntryStoreRequest extends BaseFormRequest
                 'nullable',
                 'date_format:Y-m-d\TH:i:s\Z',
                 'after_or_equal:start',
+                new MaxTimeEntryDuration($this->input('start')),
             ],
             // Whether time entry is billable
             'billable' => [

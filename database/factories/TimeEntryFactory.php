@@ -27,11 +27,21 @@ class TimeEntryFactory extends Factory
     public function definition(): array
     {
         $start = $this->faker->dateTimeBetween('-1 year', '-1 hour');
+        // Keep the default duration realistic (<= 8h) so factory entries stay within
+        // the max-duration cap enforced on create/update. Long entries use explicit
+        // duration states (startWithDuration/endWithDuration). Clamp against the real
+        // wall clock (faker's basis for '-1 year'), not Carbon::now(), so time-travelled
+        // tests don't invert the range.
+        $maxEnd = Carbon::instance($start)->addHours(8);
+        $realNow = Carbon::instance(new \DateTime);
+        if ($maxEnd->greaterThan($realNow)) {
+            $maxEnd = $realNow;
+        }
 
         return [
             'description' => $this->faker->sentence(),
             'start' => $start,
-            'end' => $this->faker->dateTimeBetween($start, 'now'),
+            'end' => $this->faker->dateTimeBetween($start, $maxEnd),
             'billable' => $this->faker->boolean(),
             'is_imported' => false,
             'tags' => [],

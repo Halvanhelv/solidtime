@@ -63,7 +63,7 @@ class UserTimeEntryEndpointTest extends ApiEndpointTestAbstract
         $response->assertJsonPath('data.id', $activeTimeEntry2->getKey());
     }
 
-    public function test_my_active_endpoint_returns_not_found_if_user_has_no_active_time_entry(): void
+    public function test_my_active_endpoint_returns_no_content_if_user_has_no_active_time_entry(): void
     {
         // Arrange
         $data = $this->createUserWithPermission();
@@ -74,6 +74,6 @@ class UserTimeEntryEndpointTest extends ApiEndpointTestAbstract
         $response = $this->getJson(route('api.v1.users.time-entries.my-active'));
 
         // Assert
-        $response->assertNotFound();
+        $response->assertNoContent();
     }
 }
