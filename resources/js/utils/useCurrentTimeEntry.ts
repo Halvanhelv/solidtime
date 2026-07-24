@@ -10,6 +10,7 @@ import {
     getCurrentUserId,
 } from '@/utils/useUser';
 import { useLocalStorage } from '@vueuse/core';
+import { isDiscardableEmptyEntry } from '@/packages/ui/src/utils/time';
 import { useNotificationsStore } from '@/utils/notification';
 import { useQueryClient } from '@tanstack/vue-query';
 
@@ -146,6 +147,24 @@ export const useCurrentTimeEntryStore = defineStore('currentTimeEntry', () => {
         const organization = getCurrentOrganizationId();
         if (organization) {
             const currentDateTime = dayjs().utc().format();
+            const entry = currentTimeEntry.value;
+            // Discard an accidental empty start+stop instead of persisting a blank,
+            // zero-duration entry that would pollute reports and autocomplete.
+            if (entry.id !== '' && isDiscardableEmptyEntry(entry, currentDateTime)) {
+                await handleApiRequestNotifications(
+                    () =>
+                        api.deleteTimeEntry(undefined, {
+                            params: {
+                                organization: organization,
+                                timeEntry: entry.id,
+                            },
+                        }),
+                    'Timer stopped!'
+                );
+                $reset();
+                stopLiveTimer();
+                return;
+            }
             await handleApiRequestNotifications(
                 () =>
                     api.updateTimeEntry(

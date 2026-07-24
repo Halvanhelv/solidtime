@@ -149,6 +149,35 @@ export function isReusableRecentEntry(entry: {
 }
 
 /**
+ * Whether stopping the timer should discard the entry instead of persisting it.
+ * An entry with no description, project, task or tags that is stopped within a
+ * couple of seconds of starting is an accidental blip (an empty start+stop) and
+ * should not be saved as a zero-duration template. A genuine empty entry with a
+ * real duration is kept.
+ */
+export function isDiscardableEmptyEntry(
+    entry: {
+        description: string | null;
+        project_id: string | null;
+        task_id: string | null;
+        tags: string[];
+        start: string;
+    },
+    end: string,
+    maxSeconds = 2
+): boolean {
+    const isEmpty =
+        !entry.description?.trim() &&
+        entry.project_id === null &&
+        entry.task_id === null &&
+        entry.tags.length === 0;
+    if (!isEmpty) {
+        return false;
+    }
+    return getDayJsInstance()(end).diff(getDayJsInstance()(entry.start), 'second') <= maxSeconds;
+}
+
+/**
  * Build a duplicate of a time entry shifted to start right after the original ends,
  * preserving its duration. Prevents "Duplicate" from stacking a second entry on the
  * exact same interval (which silently doubles the day total). A running entry

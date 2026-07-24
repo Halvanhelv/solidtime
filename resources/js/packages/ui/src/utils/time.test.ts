@@ -5,6 +5,7 @@ import {
     shiftDuplicateInterval,
     getDayJsInstance,
     isReusableRecentEntry,
+    isDiscardableEmptyEntry,
 } from './time';
 
 const seconds = 14 * 3600 + 45 * 60 + 6; // 14h 45m 06s
@@ -75,9 +76,9 @@ describe('shiftDuplicateInterval', () => {
 
     test('does not overlap the original interval', () => {
         const dup = shiftDuplicateInterval(entry);
-        expect(
-            getDayJsInstance()(dup.start).isSameOrAfter(getDayJsInstance()(entry.end))
-        ).toBe(true);
+        expect(getDayJsInstance()(dup.start).isSameOrAfter(getDayJsInstance()(entry.end))).toBe(
+            true
+        );
     });
 
     test('running entry (end null) is copied unshifted', () => {
@@ -117,6 +118,49 @@ describe('isReusableRecentEntry', () => {
 
     test('entry with a task but no description is reusable', () => {
         expect(isReusableRecentEntry({ ...base, task_id: 't1' })).toBe(true);
+    });
+});
+
+describe('isDiscardableEmptyEntry', () => {
+    const start = '2026-07-24T09:00:00Z';
+    const empty = { description: null, project_id: null, task_id: null, tags: [], start };
+
+    test('empty entry stopped instantly is discardable', () => {
+        expect(isDiscardableEmptyEntry(empty, '2026-07-24T09:00:01Z')).toBe(true);
+    });
+
+    test('empty entry with a real duration is kept', () => {
+        expect(isDiscardableEmptyEntry(empty, '2026-07-24T09:05:00Z')).toBe(false);
+    });
+
+    test('instant entry with a description is kept', () => {
+        expect(
+            isDiscardableEmptyEntry({ ...empty, description: 'Calls' }, '2026-07-24T09:00:01Z')
+        ).toBe(false);
+    });
+
+    test('instant entry with a project is kept', () => {
+        expect(
+            isDiscardableEmptyEntry({ ...empty, project_id: 'p1' }, '2026-07-24T09:00:01Z')
+        ).toBe(false);
+    });
+
+    test('instant entry with a task is kept', () => {
+        expect(isDiscardableEmptyEntry({ ...empty, task_id: 't1' }, '2026-07-24T09:00:01Z')).toBe(
+            false
+        );
+    });
+
+    test('instant entry with tags is kept', () => {
+        expect(isDiscardableEmptyEntry({ ...empty, tags: ['tag1'] }, '2026-07-24T09:00:01Z')).toBe(
+            false
+        );
+    });
+
+    test('whitespace-only description does not save an otherwise empty instant entry', () => {
+        expect(
+            isDiscardableEmptyEntry({ ...empty, description: '   ' }, '2026-07-24T09:00:01Z')
+        ).toBe(true);
     });
 });
 
