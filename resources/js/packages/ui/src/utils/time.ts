@@ -108,18 +108,52 @@ export function formatHumanReadableDuration(
     const minutes = dayJsDuration.minutes();
     const seconds = dayJsDuration.seconds();
 
+    // A non-zero entry shorter than a minute floors to "0h 00min", which reads as
+    // an empty row while still counting toward the day total. Show "<1min" so the
+    // row never contradicts the sum. Only applies to the minute-granularity formats.
+    const isSubMinute = duration > 0 && duration < 60;
+
     switch (intervalFormat) {
         case 'decimal':
             return formatNumber(dayJsDuration.asHours(), numberFormat) + ' h';
         case 'hours-minutes':
+            if (isSubMinute) {
+                return '<1min';
+            }
             return `${hours}h ${minutes.toString().padStart(2, '0')}min`;
         case 'hours-minutes-colon-separated':
             return `${hours}:${minutes.toString().padStart(2, '0')}`;
         case 'hours-minutes-seconds-colon-separated':
             return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         default:
+            if (isSubMinute) {
+                return '<1min';
+            }
             return `${hours}h ${minutes.toString().padStart(2, '0')}min`;
     }
+}
+
+/**
+ * Build a duplicate of a time entry shifted to start right after the original ends,
+ * preserving its duration. Prevents "Duplicate" from stacking a second entry on the
+ * exact same interval (which silently doubles the day total). A running entry
+ * (end === null) has nothing to anchor to and is copied unshifted.
+ */
+export function shiftDuplicateInterval<T extends { start: string; end: string | null }>(
+    entry: T
+): T {
+    if (!entry.end) {
+        return { ...entry };
+    }
+    const durationSeconds = getDayJsInstance()(entry.end).diff(
+        getDayJsInstance()(entry.start),
+        'second'
+    );
+    return {
+        ...entry,
+        start: entry.end,
+        end: getDayJsInstance()(entry.end).add(durationSeconds, 'second').utc().format(),
+    };
 }
 
 /**

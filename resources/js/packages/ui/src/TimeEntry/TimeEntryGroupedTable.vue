@@ -10,7 +10,11 @@ import type {
     TimeEntry,
     Client,
 } from '@/packages/api/src';
-import { getDayJsInstance, getLocalizedDateFromTimestamp } from '@/packages/ui/src/utils/time';
+import {
+    getDayJsInstance,
+    getLocalizedDateFromTimestamp,
+    shiftDuplicateInterval,
+} from '@/packages/ui/src/utils/time';
 import TimeEntryAggregateRow from '@/packages/ui/src/TimeEntry/TimeEntryAggregateRow.vue';
 import TimeEntryRowHeading from '@/packages/ui/src/TimeEntry/TimeEntryRowHeading.vue';
 import TimeEntryRow from '@/packages/ui/src/TimeEntry/TimeEntryRow.vue';
@@ -120,6 +124,10 @@ function startTimeEntryFromExisting(entry: TimeEntry) {
     });
 }
 
+function duplicateTimeEntry(entry: TimeEntry) {
+    props.createTimeEntry(shiftDuplicateInterval(entry));
+}
+
 function sumDuration(timeEntries: TimeEntry[]) {
     return timeEntries.reduce((acc, entry) => acc + (entry?.duration ?? 0), 0);
 }
@@ -172,7 +180,7 @@ function unselectAllTimeEntries(value: TimeEntriesGroupedByType[]) {
                     :tags-enabled="tagsEnabled"
                     :clients
                     :on-start-stop-click="startTimeEntryFromExisting"
-                    :duplicate-time-entry="createTimeEntry"
+                    :duplicate-time-entry="duplicateTimeEntry"
                     :update-time-entries
                     :update-time-entry
                     :delete-time-entries
@@ -216,7 +224,7 @@ function unselectAllTimeEntries(value: TimeEntriesGroupedByType[]) {
                     :update-time-entry
                     :on-start-stop-click="() => startTimeEntryFromExisting(entry)"
                     :delete-time-entry="() => deleteTimeEntries([entry])"
-                    :duplicate-time-entry="() => createTimeEntry(entry)"
+                    :duplicate-time-entry="() => duplicateTimeEntry(entry.timeEntries[0]!)"
                     :currency="currency"
                     :time-entry="entry.timeEntries[0]!"
                     @selected="selectedTimeEntries.push(entry)"
