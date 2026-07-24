@@ -4,6 +4,7 @@ import {
     formatReportingDuration,
     shiftDuplicateInterval,
     getDayJsInstance,
+    isReusableRecentEntry,
 } from './time';
 
 const seconds = 14 * 3600 + 45 * 60 + 6; // 14h 45m 06s
@@ -92,6 +93,30 @@ describe('shiftDuplicateInterval', () => {
         expect(dup.description).toBe('Calls');
         expect(dup.project_id).toBe('p1');
         expect(dup.billable).toBe(true);
+    });
+});
+
+describe('isReusableRecentEntry', () => {
+    const base = { description: null, project_id: null, task_id: null };
+
+    test('empty entry (no description, project, task) is not reusable', () => {
+        expect(isReusableRecentEntry(base)).toBe(false);
+    });
+
+    test('whitespace-only description is not reusable', () => {
+        expect(isReusableRecentEntry({ ...base, description: '   ' })).toBe(false);
+    });
+
+    test('entry with a description is reusable', () => {
+        expect(isReusableRecentEntry({ ...base, description: 'Calls' })).toBe(true);
+    });
+
+    test('entry with a project but no description is reusable', () => {
+        expect(isReusableRecentEntry({ ...base, project_id: 'p1' })).toBe(true);
+    });
+
+    test('entry with a task but no description is reusable', () => {
+        expect(isReusableRecentEntry({ ...base, task_id: 't1' })).toBe(true);
     });
 });
 

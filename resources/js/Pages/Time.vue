@@ -25,6 +25,7 @@ import { useTagsQuery } from '@/utils/useTagsQuery';
 import { useClientsQuery } from '@/utils/useClientsQuery';
 import { getOrganizationCurrencyString } from '@/utils/money';
 import TimeEntryMassActionRow from '@/packages/ui/src/TimeEntry/TimeEntryMassActionRow.vue';
+import ConfirmDialog from '@/packages/ui/src/ConfirmDialog.vue';
 import type { UpdateMultipleTimeEntriesChangeset } from '@/packages/api/src';
 import { isAllowedToPerformPremiumAction } from '@/utils/billing';
 import { canCreateProjects } from '@/utils/permissions';
@@ -67,9 +68,38 @@ async function startTimeEntry(timeEntry: Omit<CreateTimeEntryBody, 'member_id'>)
     useCurrentTimeEntryStore().fetchCurrentTimeEntry();
 }
 
-async function deleteTimeEntries(timeEntries: TimeEntry[]) {
-    await deleteTimeEntriesMutation(timeEntries);
+const pendingDeleteEntries = ref<TimeEntry[]>([]);
+const showDeleteConfirm = ref(false);
+
+function deleteTimeEntries(timeEntries: TimeEntry[]) {
+    if (timeEntries.length === 0) {
+        return;
+    }
+    // Guard every delete path (row menu, edit modal, bulk) behind a confirmation.
+    pendingDeleteEntries.value = timeEntries;
+    showDeleteConfirm.value = true;
 }
+
+async function confirmDeleteTimeEntries() {
+    if (pendingDeleteEntries.value.length > 0) {
+        await deleteTimeEntriesMutation(pendingDeleteEntries.value);
+    }
+    showDeleteConfirm.value = false;
+    pendingDeleteEntries.value = [];
+    selectedTimeEntries.value = [];
+}
+
+function cancelDeleteTimeEntries() {
+    showDeleteConfirm.value = false;
+    pendingDeleteEntries.value = [];
+}
+
+const deleteConfirmMessage = computed(() => {
+    const count = pendingDeleteEntries.value.length;
+    return count === 1
+        ? 'Delete this time entry? This cannot be undone.'
+        : `Delete ${count} time entries? This cannot be undone.`;
+});
 
 watch(isLoadMoreVisible, async (isVisible) => {
     if (isVisible && hasNextPage.value) {
@@ -103,7 +133,6 @@ async function clearSelectionAndState() {
 
 function deleteSelected() {
     deleteTimeEntries(selectedTimeEntries.value);
-    selectedTimeEntries.value = [];
 }
 </script>
 
@@ -180,5 +209,13 @@ function deleteSelected() {
                 All time entries are loaded!
             </div>
         </div>
+        <ConfirmDialog
+            :show="showDeleteConfirm"
+            title="Delete time entries"
+            :message="deleteConfirmMessage"
+            confirm-label="Delete"
+            destructive
+            @confirm="confirmDeleteTimeEntries"
+            @cancel="cancelDeleteTimeEntries"></ConfirmDialog>
     </AppLayout>
 </template>

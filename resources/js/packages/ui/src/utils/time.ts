@@ -134,6 +134,21 @@ export function formatHumanReadableDuration(
 }
 
 /**
+ * Whether a recent time entry is worth offering as a reusable template in the
+ * "Recently Tracked" dropdown. An entry with no description, no project and no
+ * task is empty pollution and should be hidden.
+ */
+export function isReusableRecentEntry(entry: {
+    description: string | null;
+    project_id: string | null;
+    task_id: string | null;
+}): boolean {
+    return (
+        Boolean(entry.description?.trim()) || entry.project_id !== null || entry.task_id !== null
+    );
+}
+
+/**
  * Build a duplicate of a time entry shifted to start right after the original ends,
  * preserving its duration. Prevents "Duplicate" from stacking a second entry on the
  * exact same interval (which silently doubles the day total). A running entry
