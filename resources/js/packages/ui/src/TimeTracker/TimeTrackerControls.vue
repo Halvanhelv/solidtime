@@ -14,6 +14,7 @@ import type {
     Client,
 } from '@/packages/api/src';
 import { computed, nextTick, ref, watch } from 'vue';
+import { isReusableRecentEntry } from '@/packages/ui/src/utils/time';
 import type { Dayjs } from 'dayjs';
 import { useFocus } from '@vueuse/core';
 import { autoUpdate, flip, limitShift, offset, shift, useFloating } from '@floating-ui/vue';
@@ -133,8 +134,11 @@ function updateTimeEntryDescription() {
 }
 
 const filteredRecentlyTrackedTimeEntries = computed(() => {
-    // do not include running time entries
-    const finishedTimeEntries = props.timeEntries.filter((item) => item.end !== null);
+    // do not include running time entries, and drop empty entries (no description,
+    // project or task) that would otherwise be offered as a blank template
+    const finishedTimeEntries = props.timeEntries.filter(
+        (item) => item.end !== null && isReusableRecentEntry(item)
+    );
 
     // filter out duplicates based on description, task, project, tags and billable
     const nonDuplicateTimeEntries = finishedTimeEntries.filter((item, index, self) => {

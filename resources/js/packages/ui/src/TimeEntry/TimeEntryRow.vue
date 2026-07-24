@@ -114,8 +114,9 @@ function handleEdit() {
 }
 
 async function handleUpdateTimeEntry(updatedEntry: TimeEntry) {
-    props.updateTimeEntry(updatedEntry);
-    showEditModal.value = false;
+    // Await the mutation so a rejected update (e.g. server validation) keeps the
+    // modal open with the user's edits intact. The modal closes itself on success.
+    await props.updateTimeEntry(updatedEntry);
 }
 
 async function handleDeleteTimeEntry() {

@@ -108,18 +108,96 @@ export function formatHumanReadableDuration(
     const minutes = dayJsDuration.minutes();
     const seconds = dayJsDuration.seconds();
 
+    // A non-zero entry shorter than a minute floors to "0h 00min", which reads as
+    // an empty row while still counting toward the day total. Show "<1min" so the
+    // row never contradicts the sum. Only applies to the minute-granularity formats.
+    const isSubMinute = duration > 0 && duration < 60;
+
     switch (intervalFormat) {
         case 'decimal':
             return formatNumber(dayJsDuration.asHours(), numberFormat) + ' h';
         case 'hours-minutes':
+            if (isSubMinute) {
+                return '<1min';
+            }
             return `${hours}h ${minutes.toString().padStart(2, '0')}min`;
         case 'hours-minutes-colon-separated':
             return `${hours}:${minutes.toString().padStart(2, '0')}`;
         case 'hours-minutes-seconds-colon-separated':
             return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         default:
+            if (isSubMinute) {
+                return '<1min';
+            }
             return `${hours}h ${minutes.toString().padStart(2, '0')}min`;
     }
+}
+
+/**
+ * Whether a recent time entry is worth offering as a reusable template in the
+ * "Recently Tracked" dropdown. An entry with no description, no project and no
+ * task is empty pollution and should be hidden.
+ */
+export function isReusableRecentEntry(entry: {
+    description: string | null;
+    project_id: string | null;
+    task_id: string | null;
+}): boolean {
+    return (
+        Boolean(entry.description?.trim()) || entry.project_id !== null || entry.task_id !== null
+    );
+}
+
+/**
+ * Whether stopping the timer should discard the entry instead of persisting it.
+ * An entry with no description, project, task or tags that is stopped within a
+ * couple of seconds of starting is an accidental blip (an empty start+stop) and
+ * should not be saved as a zero-duration template. A genuine empty entry with a
+ * real duration is kept.
+ */
+export function isDiscardableEmptyEntry(
+    entry: {
+        description: string | null;
+        project_id: string | null;
+        task_id: string | null;
+        tags: string[];
+        start: string;
+    },
+    end: string,
+    maxSeconds = 2
+): boolean {
+    const isEmpty =
+        !entry.description?.trim() &&
+        entry.project_id === null &&
+        entry.task_id === null &&
+        entry.tags.length === 0;
+    if (!isEmpty) {
+        return false;
+    }
+    return getDayJsInstance()(end).diff(getDayJsInstance()(entry.start), 'second') <= maxSeconds;
+}
+
+/**
+ * Build a duplicate of a time entry shifted to start right after the original ends,
+ * preserving its duration. Prevents "Duplicate" from stacking a second entry on the
+ * exact same interval (which silently doubles the day total). A running entry
+ * (end === null) has nothing to anchor to and is copied unshifted.
+ */
+export function shiftDuplicateInterval<T extends { start: string; end: string | null }>(
+    entry: T
+): T {
+    if (!entry.end) {
+        return { ...entry };
+    }
+    const durationSeconds = getDayJsInstance()(entry.end).diff(
+        getDayJsInstance()(entry.start),
+        'second'
+    );
+    return {
+        ...entry,
+        start: entry.end,
+        end: getDayJsInstance()(entry.end).add(durationSeconds, 'second').utc().format(),
+    };
 }
 
 /**

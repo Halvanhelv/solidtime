@@ -110,8 +110,46 @@ const localEnd = computed({
     },
 });
 
+// End before start produces a negative duration the server always rejects.
+// Catch it client-side so Save is blocked and the error is bound to the field
+// instead of surfacing as a raw toast after the modal has closed.
+const isTimeRangeInvalid = computed(() => {
+    if (!editableTimeEntry.value?.end) {
+        return false; // running entry has no end yet
+    }
+    return getLocalizedDayJs(editableTimeEntry.value.end).isBefore(
+        getLocalizedDayJs(editableTimeEntry.value.start)
+    );
+});
+
+// Entries longer than a day are almost always a typo (e.g. "9999h"). Require an
+// explicit confirmation before such an entry can be saved.
+const LONG_ENTRY_THRESHOLD_SECONDS = 24 * 60 * 60;
+const confirmLongEntry = ref(false);
+
+const isLongEntry = computed(() => {
+    if (!editableTimeEntry.value?.end || isTimeRangeInvalid.value) {
+        return false;
+    }
+    const seconds = getLocalizedDayJs(editableTimeEntry.value.end).diff(
+        getLocalizedDayJs(editableTimeEntry.value.start),
+        'second'
+    );
+    return seconds > LONG_ENTRY_THRESHOLD_SECONDS;
+});
+
+const needsLongEntryConfirmation = computed(() => isLongEntry.value && !confirmLongEntry.value);
+
+// Reset the confirmation whenever a different entry is opened.
+watch(
+    () => props.timeEntry?.id,
+    () => {
+        confirmLongEntry.value = false;
+    }
+);
+
 async function submit() {
-    if (editableTimeEntry.value) {
+    if (editableTimeEntry.value && !isTimeRangeInvalid.value && !needsLongEntryConfirmation.value) {
         saving.value = true;
         try {
             await props.updateTimeEntry(editableTimeEntry.value);
@@ -253,9 +291,24 @@ const billableProxy = computed({
                         <div class="flex flex-col gap-2">
                             <TimePickerSimple v-model="localEnd" class="w-full"></TimePickerSimple>
                             <DatePicker v-model="localEnd" class="w-full" tabindex="1"></DatePicker>
+                            <span
+                                v-if="isTimeRangeInvalid"
+                                class="text-xs text-red-500"
+                                data-testid="end-before-start-error">
+                                End must be after start
+                            </span>
                         </div>
                     </Field>
                 </div>
+                <label
+                    v-if="isLongEntry"
+                    class="flex items-start gap-2 pt-4 text-xs text-amber-500"
+                    data-testid="long-entry-confirm">
+                    <input v-model="confirmLongEntry" type="checkbox" class="mt-0.5" />
+                    <span>
+                        This entry is longer than 24 hours. Check to confirm it is correct.
+                    </span>
+                </label>
             </div>
         </template>
         <template #footer>
@@ -271,8 +324,13 @@ const billableProxy = computed({
                     <SecondaryButton tabindex="2" @click="show = false"> Cancel</SecondaryButton>
                     <PrimaryButton
                         tabindex="2"
-                        :class="{ 'opacity-25': saving }"
-                        :disabled="saving || deleting"
+                        :class="{
+                            'opacity-25':
+                                saving || isTimeRangeInvalid || needsLongEntryConfirmation,
+                        }"
+                        :disabled="
+                            saving || deleting || isTimeRangeInvalid || needsLongEntryConfirmation
+                        "
                         @click="submit">
                         {{ saving ? 'Updating...' : 'Update Time Entry' }}
                     </PrimaryButton>

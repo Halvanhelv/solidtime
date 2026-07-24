@@ -2817,6 +2817,51 @@ class TimeEntryEndpointTest extends ApiEndpointTestAbstract
         ]);
     }
 
+    public function test_store_endpoint_fails_if_duration_exceeds_maximum(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:create:own',
+        ]);
+        Passport::actingAs($data->user);
+        $start = Carbon::now()->startOfDay();
+
+        // Act
+        $response = $this->postJson(route('api.v1.time-entries.store', [$data->organization->getKey()]), [
+            'description' => 'too long',
+            'billable' => false,
+            'start' => $start->toIso8601ZuluString(),
+            'end' => $start->copy()->addHours(169)->toIso8601ZuluString(),
+            'member_id' => $data->member->getKey(),
+        ]);
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['end']);
+    }
+
+    public function test_store_endpoint_accepts_duration_at_maximum(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:create:own',
+        ]);
+        Passport::actingAs($data->user);
+        $start = Carbon::now()->startOfDay();
+
+        // Act
+        $response = $this->postJson(route('api.v1.time-entries.store', [$data->organization->getKey()]), [
+            'description' => 'exactly the cap',
+            'billable' => false,
+            'start' => $start->toIso8601ZuluString(),
+            'end' => $start->copy()->addHours(168)->toIso8601ZuluString(),
+            'member_id' => $data->member->getKey(),
+        ]);
+
+        // Assert
+        $response->assertStatus(201);
+    }
+
     public function test_store_endpoint_fails_gracefully_if_non_uuid_text_is_in_uuid_validated_field_in_body(): void
     {
         // Arrange
@@ -3093,6 +3138,31 @@ class TimeEntryEndpointTest extends ApiEndpointTestAbstract
             'id' => $timeEntry->getKey(),
             'project_id' => $privateProject->getKey(),
         ]);
+    }
+
+    public function test_update_endpoint_fails_if_duration_exceeds_maximum(): void
+    {
+        // Arrange
+        $data = $this->createUserWithPermission([
+            'time-entries:update:own',
+        ]);
+        $start = Carbon::now()->startOfDay();
+        $timeEntry = TimeEntry::factory()->forOrganization($data->organization)->forMember($data->member)->create([
+            'start' => $start,
+            'end' => $start->copy()->addHour(),
+        ]);
+        Passport::actingAs($data->user);
+
+        // Act — mimic the edit form fat-fingering an enormous duration
+        $response = $this->putJson(route('api.v1.time-entries.update', [$data->organization->getKey(), $timeEntry->getKey()]), [
+            'start' => $start->toIso8601ZuluString(),
+            'end' => $start->copy()->addHours(9999)->toIso8601ZuluString(),
+            'member_id' => $data->member->getKey(),
+        ]);
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['end']);
     }
 
     public function test_update_endpoint_fails_if_user_has_no_permission_to_update_own_time_entries(): void

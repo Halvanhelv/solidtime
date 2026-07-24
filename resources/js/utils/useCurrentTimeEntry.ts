@@ -10,6 +10,7 @@ import {
     getCurrentUserId,
 } from '@/utils/useUser';
 import { useLocalStorage } from '@vueuse/core';
+import { isDiscardableEmptyEntry } from '@/packages/ui/src/utils/time';
 import { useNotificationsStore } from '@/utils/notification';
 import { useQueryClient } from '@tanstack/vue-query';
 
@@ -59,44 +60,52 @@ export const useCurrentTimeEntryStore = defineStore('currentTimeEntry', () => {
         }
     }
 
-    async function fetchCurrentTimeEntry() {
+    function clearActiveTimeEntry() {
+        // Only reset if we had a previously started timer (has an ID). Don't reset if
+        // the user is preparing a new time entry (no ID yet).
+        if (currentTimeEntry.value.id !== '') {
+            currentTimeEntry.value = { ...emptyTimeEntry };
+            stopLiveTimer();
+        }
+    }
+
+    async function doFetchCurrentTimeEntry() {
         const organizationId = getCurrentOrganizationId();
-        if (organizationId) {
-            try {
-                const timeEntriesResponse = await api.getMyActiveTimeEntry({});
-                if (timeEntriesResponse?.data) {
-                    if (timeEntriesResponse.data) {
-                        currentTimeEntry.value = timeEntriesResponse.data;
-                        if (
-                            currentTimeEntry.value.start !== '' &&
-                            currentTimeEntry.value.end === null
-                        ) {
-                            startLiveTimer();
-                        }
-                    } else {
-                        // No active time entry on server
-                        // Only reset if we had a previously started timer (has an ID)
-                        // Don't reset if user is preparing a new time entry (no ID yet)
-                        if (currentTimeEntry.value.id !== '') {
-                            currentTimeEntry.value = { ...emptyTimeEntry };
-                            stopLiveTimer();
-                        }
-                    }
-                }
-            } catch {
-                // API error (e.g., 404 when no active time entry)
-                // Only reset if we had a previously started timer (has an ID)
-                // Don't reset if user is preparing a new time entry (no ID yet)
-                if (currentTimeEntry.value.id !== '') {
-                    currentTimeEntry.value = { ...emptyTimeEntry };
-                    stopLiveTimer();
-                }
-            }
-        } else {
+        if (!organizationId) {
             throw new Error(
                 'Failed to fetch current time entry because organization ID is missing.'
             );
         }
+        try {
+            const timeEntriesResponse = await api.getMyActiveTimeEntry({});
+            // A 204 No Content response (no active timer) resolves with an empty body.
+            if (timeEntriesResponse?.data) {
+                currentTimeEntry.value = timeEntriesResponse.data;
+                if (currentTimeEntry.value.start !== '' && currentTimeEntry.value.end === null) {
+                    startLiveTimer();
+                }
+            } else {
+                clearActiveTimeEntry();
+            }
+        } catch {
+            // Unexpected API error — treat as no active timer.
+            clearActiveTimeEntry();
+        }
+    }
+
+    // Collapse concurrent callers (init, layout mount, TimeTracker mount, focus
+    // handlers) into a single in-flight request instead of firing several identical
+    // ones per page load.
+    let inFlightFetch: Promise<void> | null = null;
+
+    async function fetchCurrentTimeEntry() {
+        if (inFlightFetch) {
+            return inFlightFetch;
+        }
+        inFlightFetch = doFetchCurrentTimeEntry().finally(() => {
+            inFlightFetch = null;
+        });
+        return inFlightFetch;
     }
 
     async function startTimer() {
@@ -138,6 +147,24 @@ export const useCurrentTimeEntryStore = defineStore('currentTimeEntry', () => {
         const organization = getCurrentOrganizationId();
         if (organization) {
             const currentDateTime = dayjs().utc().format();
+            const entry = currentTimeEntry.value;
+            // Discard an accidental empty start+stop instead of persisting a blank,
+            // zero-duration entry that would pollute reports and autocomplete.
+            if (entry.id !== '' && isDiscardableEmptyEntry(entry, currentDateTime)) {
+                await handleApiRequestNotifications(
+                    () =>
+                        api.deleteTimeEntry(undefined, {
+                            params: {
+                                organization: organization,
+                                timeEntry: entry.id,
+                            },
+                        }),
+                    'Timer stopped!'
+                );
+                $reset();
+                stopLiveTimer();
+                return;
+            }
             await handleApiRequestNotifications(
                 () =>
                     api.updateTimeEntry(
